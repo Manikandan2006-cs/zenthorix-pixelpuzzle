@@ -30,7 +30,7 @@ const BundleEditor = ({ bundle, onSave, onCancel }: Props) => {
 
   const updateQuestion = (index: number, field: keyof Question, value: unknown) => {
     const updated = [...questions];
-    (updated[index] as Record<string, unknown>)[field] = value;
+    updated[index] = { ...updated[index], [field]: value };
     setQuestions(updated);
   };
 
