@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { registerTeam, saveTeamSession } from "@/lib/quizStore";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const StudentLogin = () => {
   const [teamName, setTeamName] = useState("");
@@ -65,12 +66,17 @@ const StudentLogin = () => {
               <label className="text-sm font-body font-semibold text-muted-foreground uppercase tracking-wider">
                 Year
               </label>
-              <Input
-                value={year}
-                onChange={(e) => setYear(e.target.value)}
-                placeholder="e.g., 2nd Year"
-                className="bg-muted border-border text-foreground placeholder:text-muted-foreground focus:ring-primary"
-              />
+              <Select value={year} onValueChange={setYear}>
+                <SelectTrigger className="bg-muted border-border text-foreground focus:ring-primary">
+                  <SelectValue placeholder="Select your year" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1st Year">1st Year</SelectItem>
+                  <SelectItem value="2nd Year">2nd Year</SelectItem>
+                  <SelectItem value="3rd Year">3rd Year</SelectItem>
+                  <SelectItem value="4th Year">4th Year</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
