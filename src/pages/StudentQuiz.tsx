@@ -286,14 +286,23 @@ const StudentQuiz = () => {
           >
             ← PREV
           </Button>
-          <Button
-            variant="outline"
-            onClick={goNext}
-            disabled={currentIndex === questions.length - 1}
-            className="font-display tracking-wider border-border text-muted-foreground hover:text-foreground"
-          >
-            NEXT →
-          </Button>
+          {currentIndex === questions.length - 1 ? (
+            <Button
+              onClick={handleFinalSubmit}
+              disabled={submitted}
+              className="font-display tracking-wider bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              {submitted ? "✓ SUBMITTED" : "SUBMIT"}
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              onClick={goNext}
+              className="font-display tracking-wider border-border text-muted-foreground hover:text-foreground"
+            >
+              NEXT →
+            </Button>
+          )}
         </div>
 
         {/* Question dots */}
