@@ -2,18 +2,20 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   getTeamSession,
-  getAdminData,
+  fetchQuizState,
+  fetchBundles,
+  fetchTeams,
   submitAnswer,
-  saveTeamSession,
-  onBroadcast,
-  shuffleArray,
+  recalculateScore,
   eliminateTeam,
+  shuffleArray,
 } from "@/lib/quizStore";
-import { Question, Team } from "@/types/quiz";
+import { Question, Team, QuizState } from "@/types/quiz";
 import { Button } from "@/components/ui/button";
 
 const StudentQuiz = () => {
   const navigate = useNavigate();
+  const [teamId, setTeamId] = useState<string | null>(null);
   const [team, setTeam] = useState<Team | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -23,32 +25,40 @@ const StudentQuiz = () => {
   const [quizActive, setQuizActive] = useState(false);
   const [eliminated, setEliminated] = useState(false);
   const [waiting, setWaiting] = useState(true);
+  const [submitted, setSubmitted] = useState(false);
   const shuffledRef = useRef(false);
 
-  // Load team session
+  // Load team session from localStorage
   useEffect(() => {
     const session = getTeamSession();
     if (!session) {
       navigate("/student");
       return;
     }
-    setTeam(session);
-    setAnswers(session.answers || {});
+    setTeamId(session.id);
   }, [navigate]);
 
-  // Poll for quiz state
-  const syncQuizState = useCallback(() => {
-    if (!team) return;
-    const data = getAdminData();
-    const teamData = data.teams.find((t) => t.id === team.id);
+  // Poll for quiz state from database
+  const syncQuizState = useCallback(async () => {
+    if (!teamId) return;
 
-    if (teamData?.eliminated) {
-      setEliminated(true);
-      return;
+    const [quizState, bundles, teams] = await Promise.all([
+      fetchQuizState(),
+      fetchBundles(),
+      fetchTeams(),
+    ]);
+
+    const teamData = teams.find((t) => t.id === teamId);
+    if (teamData) {
+      setTeam(teamData);
+      if (teamData.eliminated) {
+        setEliminated(true);
+        return;
+      }
     }
 
-    if (data.quizState.isQuizActive && data.quizState.activeBundle) {
-      const bundle = data.bundles.find((b) => b.id === data.quizState.activeBundle);
+    if (quizState.isQuizActive && quizState.activeBundle) {
+      const bundle = bundles.find((b) => b.id === quizState.activeBundle);
       if (bundle && !shuffledRef.current) {
         setQuestions(shuffleArray(bundle.questions));
         shuffledRef.current = true;
@@ -56,10 +66,9 @@ const StudentQuiz = () => {
       setQuizActive(true);
       setWaiting(false);
 
-      // Calculate time left
-      if (data.quizState.timerStartedAt && !data.quizState.timerPaused) {
-        const elapsed = Math.floor((Date.now() - data.quizState.timerStartedAt) / 1000);
-        const remaining = Math.max(0, data.quizState.timerDuration - elapsed);
+      if (quizState.timerStartedAt && !quizState.timerPaused) {
+        const elapsed = Math.floor((Date.now() - quizState.timerStartedAt) / 1000);
+        const remaining = Math.max(0, quizState.timerDuration - elapsed);
         setTimeLeft(remaining);
         if (remaining === 0) {
           setQuizActive(false);
@@ -70,40 +79,28 @@ const StudentQuiz = () => {
       setWaiting(true);
       shuffledRef.current = false;
     }
-  }, [team]);
+  }, [teamId]);
 
   useEffect(() => {
     syncQuizState();
-    const interval = setInterval(syncQuizState, 1000);
-    const unsub = onBroadcast((msg) => {
-      if (msg.type === "QUIZ_STARTED" || msg.type === "QUIZ_STOPPED" || msg.type === "ADMIN_DATA_UPDATED") {
-        shuffledRef.current = false;
-        syncQuizState();
-      }
-      if (msg.type === "TEAM_ELIMINATED" && msg.data === team?.id) {
-        setEliminated(true);
-      }
-    });
-    return () => {
-      clearInterval(interval);
-      unsub();
-    };
-  }, [syncQuizState, team?.id]);
+    const interval = setInterval(syncQuizState, 2000);
+    return () => clearInterval(interval);
+  }, [syncQuizState]);
 
   // Anti-cheat: detect tab switch / minimize
   useEffect(() => {
-    if (!quizActive || !team) return;
+    if (!quizActive || !teamId) return;
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
         setEliminated(true);
-        eliminateTeam(team.id);
+        eliminateTeam(teamId);
       }
     };
 
     const handleBlur = () => {
       setEliminated(true);
-      eliminateTeam(team.id);
+      eliminateTeam(teamId);
     };
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -120,36 +117,21 @@ const StudentQuiz = () => {
       window.removeEventListener("blur", handleBlur);
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [quizActive, team]);
+  }, [quizActive, teamId]);
 
-  const [submitted, setSubmitted] = useState(false);
-
-  const handleSelectAnswer = (index: number) => {
-    if (!team || !questions[currentIndex] || !quizActive || submitted) return;
+  const handleSelectAnswer = async (index: number) => {
+    if (!teamId || !questions[currentIndex] || !quizActive || submitted) return;
     setSelectedAnswer(index);
     const qId = questions[currentIndex].id;
     const newAnswers = { ...answers, [qId]: index };
     setAnswers(newAnswers);
-    submitAnswer(team.id, qId, index);
-
-    // Update session with fresh team data
-    const freshData = getAdminData();
-    const freshTeam = freshData.teams.find((t) => t.id === team.id);
-    if (freshTeam) {
-      saveTeamSession(freshTeam);
-      setTeam(freshTeam);
-    }
+    await submitAnswer(teamId, qId, index);
+    await recalculateScore(teamId);
   };
 
-  const handleFinalSubmit = () => {
-    if (!team) return;
-    // Ensure all answers are saved
-    const freshData = getAdminData();
-    const freshTeam = freshData.teams.find((t) => t.id === team.id);
-    if (freshTeam) {
-      saveTeamSession(freshTeam);
-      setTeam(freshTeam);
-    }
+  const handleFinalSubmit = async () => {
+    if (!teamId) return;
+    await recalculateScore(teamId);
     setSubmitted(true);
   };
 
@@ -167,14 +149,12 @@ const StudentQuiz = () => {
     }
   };
 
-  // Format timer
   const formatTime = (s: number) => {
     const mins = Math.floor(s / 60);
     const secs = s % 60;
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // ELIMINATED screen
   if (eliminated) {
     return (
       <div className="min-h-screen eliminated-overlay flex items-center justify-center p-4">
@@ -189,7 +169,7 @@ const StudentQuiz = () => {
       </div>
     );
   }
-  // SUBMITTED screen
+
   if (submitted) {
     const answeredCount = Object.keys(answers).length;
     return (
@@ -214,7 +194,6 @@ const StudentQuiz = () => {
     );
   }
 
-  // WAITING screen
   if (waiting) {
     return (
       <div className="min-h-screen grid-bg flex items-center justify-center p-4">
@@ -243,7 +222,6 @@ const StudentQuiz = () => {
 
   return (
     <div className="min-h-screen grid-bg flex flex-col">
-      {/* Header */}
       <header className="glass border-b border-border px-4 py-3 flex items-center justify-between">
         <div>
           <span className="font-display text-sm text-primary font-bold">ZENTHORIX</span>
@@ -265,7 +243,6 @@ const StudentQuiz = () => {
         </div>
       </header>
 
-      {/* Question */}
       <main className="flex-1 flex flex-col items-center justify-center p-4 max-w-2xl mx-auto w-full">
         <div className="glass rounded-lg p-6 w-full space-y-6 neon-border">
           <h2 className="text-xl md:text-2xl font-body font-semibold text-foreground leading-relaxed">
@@ -300,7 +277,6 @@ const StudentQuiz = () => {
           </div>
         </div>
 
-        {/* Navigation */}
         <div className="flex gap-4 mt-6">
           <Button
             variant="outline"
@@ -329,7 +305,6 @@ const StudentQuiz = () => {
           )}
         </div>
 
-        {/* Question dots */}
         <div className="flex flex-wrap gap-2 mt-6 justify-center">
           {questions.map((q, i) => (
             <button
