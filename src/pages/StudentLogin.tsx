@@ -9,19 +9,26 @@ const StudentLogin = () => {
   const [teamName, setTeamName] = useState("");
   const [collegeName, setCollegeName] = useState("");
   const [year, setYear] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleJoin = () => {
+  const handleJoin = async () => {
     if (!teamName.trim() || !collegeName.trim() || !year.trim()) return;
-    const team = registerTeam({ teamName: teamName.trim(), collegeName: collegeName.trim(), year: year.trim() });
-    saveTeamSession(team);
-    navigate("/student/quiz");
+    setLoading(true);
+    try {
+      const team = await registerTeam({ teamName: teamName.trim(), collegeName: collegeName.trim(), year: year.trim() });
+      saveTeamSession(team.id);
+      navigate("/student/quiz");
+    } catch (err) {
+      console.error("Registration failed:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen grid-bg flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-8">
-        {/* Logo */}
         <div className="text-center space-y-2">
           <h1 className="text-4xl md:text-5xl font-display font-bold tracking-wider neon-text text-primary">
             ZENTHORIX
@@ -31,7 +38,6 @@ const StudentLogin = () => {
           </p>
         </div>
 
-        {/* Login Card */}
         <div className="glass rounded-lg p-6 space-y-5 neon-border">
           <h2 className="text-xl font-display font-semibold text-center text-foreground">
             Team Registration
@@ -82,10 +88,10 @@ const StudentLogin = () => {
 
           <Button
             onClick={handleJoin}
-            disabled={!teamName.trim() || !collegeName.trim() || !year.trim()}
+            disabled={!teamName.trim() || !collegeName.trim() || !year.trim() || loading}
             className="w-full bg-primary text-primary-foreground font-display font-bold text-lg tracking-wider hover:opacity-90 transition-opacity disabled:opacity-40"
           >
-            ENTER ARENA
+            {loading ? "JOINING..." : "ENTER ARENA"}
           </Button>
         </div>
 

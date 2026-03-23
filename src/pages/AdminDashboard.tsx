@@ -1,8 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  getAdminData,
+  fetchBundles,
+  fetchTeams,
+  fetchQuizState,
   addBundle,
+  updateBundle,
   deleteBundle,
   setActiveBundle,
   startQuiz,
@@ -10,86 +13,95 @@ import {
   setTimerDuration,
   eliminateTeam,
   clearAllTeams,
-  saveAdminData,
 } from "@/lib/quizStore";
-import { AdminData, Question, QuestionBundle } from "@/types/quiz";
+import { QuestionBundle, Team, QuizState } from "@/types/quiz";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import BundleEditor from "@/components/BundleEditor";
 import TeamResults from "@/components/TeamResults";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const [data, setData] = useState<AdminData>(getAdminData());
+  const [bundles, setBundles] = useState<QuestionBundle[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [quizState, setQuizState] = useState<QuizState>({
+    activeBundle: null,
+    isQuizActive: false,
+    timerDuration: 300,
+    timerStartedAt: null,
+    timerPaused: false,
+  });
   const [tab, setTab] = useState<"bundles" | "quiz" | "teams" | "results">("bundles");
-  const [timerInput, setTimerInput] = useState(String(data.quizState.timerDuration));
+  const [timerInput, setTimerInput] = useState("300");
   const [showBundleEditor, setShowBundleEditor] = useState(false);
   const [editingBundle, setEditingBundle] = useState<QuestionBundle | null>(null);
 
-  // Check auth
   useEffect(() => {
     if (sessionStorage.getItem("zenthorix_admin") !== "true") {
       navigate("/admin");
     }
   }, [navigate]);
 
-  // Refresh data periodically
-  const refresh = useCallback(() => setData(getAdminData()), []);
+  const refresh = useCallback(async () => {
+    const [b, t, q] = await Promise.all([fetchBundles(), fetchTeams(), fetchQuizState()]);
+    setBundles(b);
+    setTeams(t);
+    setQuizState(q);
+    setTimerInput(String(q.timerDuration));
+  }, []);
+
   useEffect(() => {
-    const interval = setInterval(refresh, 2000);
+    refresh();
+    const interval = setInterval(refresh, 3000);
     return () => clearInterval(interval);
   }, [refresh]);
 
-  const handleSetTimer = () => {
+  const handleSetTimer = async () => {
     const secs = parseInt(timerInput);
     if (!isNaN(secs) && secs > 0) {
-      setTimerDuration(secs);
+      await setTimerDuration(secs);
       refresh();
     }
   };
 
-  const handleSelectBundle = (bundleId: string) => {
-    setActiveBundle(bundleId);
+  const handleSelectBundle = async (bundleId: string) => {
+    await setActiveBundle(bundleId);
     refresh();
   };
 
-  const handleStartQuiz = () => {
-    startQuiz();
+  const handleStartQuiz = async () => {
+    await startQuiz();
     refresh();
   };
 
-  const handleStopQuiz = () => {
-    stopQuiz();
+  const handleStopQuiz = async () => {
+    await stopQuiz();
     refresh();
   };
 
-  const handleSaveBundle = (bundle: QuestionBundle) => {
+  const handleSaveBundle = async (bundle: QuestionBundle) => {
     if (editingBundle) {
-      const d = getAdminData();
-      const idx = d.bundles.findIndex((b) => b.id === bundle.id);
-      if (idx >= 0) d.bundles[idx] = bundle;
-      saveAdminData(d);
+      await updateBundle(bundle);
     } else {
-      addBundle(bundle);
+      await addBundle(bundle);
     }
     setShowBundleEditor(false);
     setEditingBundle(null);
     refresh();
   };
 
-  const handleDeleteBundle = (id: string) => {
-    deleteBundle(id);
+  const handleDeleteBundle = async (id: string) => {
+    await deleteBundle(id);
     refresh();
   };
 
-  const handleEliminateTeam = (id: string) => {
-    eliminateTeam(id);
+  const handleEliminateTeam = async (id: string) => {
+    await eliminateTeam(id);
     refresh();
   };
 
-  const handleClearTeams = () => {
-    clearAllTeams();
+  const handleClearTeams = async () => {
+    await clearAllTeams();
     refresh();
   };
 
@@ -100,25 +112,31 @@ const AdminDashboard = () => {
     { id: "results" as const, label: "RESULTS" },
   ];
 
-  const activeBundle = data.bundles.find((b) => b.id === data.quizState.activeBundle);
+  const activeBundle = bundles.find((b) => b.id === quizState.activeBundle);
+
+  // Build AdminData-like object for TeamResults
+  const adminData = {
+    bundles,
+    teams,
+    quizState,
+    adminPassword: "",
+  };
 
   return (
     <div className="min-h-screen grid-bg">
-      {/* Header */}
       <header className="glass border-b border-border px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="font-display text-xl font-bold text-secondary neon-text-purple">ZENTHORIX</h1>
           <span className="text-muted-foreground font-body text-sm">Admin Portal</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${data.quizState.isQuizActive ? "bg-primary animate-pulse-neon" : "bg-muted-foreground"}`} />
+          <span className={`w-2 h-2 rounded-full ${quizState.isQuizActive ? "bg-primary animate-pulse-neon" : "bg-muted-foreground"}`} />
           <span className="text-sm font-body text-muted-foreground">
-            {data.quizState.isQuizActive ? "LIVE" : "IDLE"}
+            {quizState.isQuizActive ? "LIVE" : "IDLE"}
           </span>
         </div>
       </header>
 
-      {/* Tabs */}
       <nav className="glass border-b border-border px-4 flex gap-1 overflow-x-auto">
         {tabs.map((t) => (
           <button
@@ -136,7 +154,6 @@ const AdminDashboard = () => {
       </nav>
 
       <main className="p-4 max-w-5xl mx-auto">
-        {/* BUNDLES TAB */}
         {tab === "bundles" && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -157,16 +174,16 @@ const AdminDashboard = () => {
               />
             )}
 
-            {data.bundles.length === 0 && !showBundleEditor && (
+            {bundles.length === 0 && !showBundleEditor && (
               <div className="glass rounded-lg p-8 text-center">
                 <p className="text-muted-foreground font-body text-lg">No bundles yet. Create one to get started.</p>
               </div>
             )}
 
             <div className="grid gap-3">
-              {data.bundles.map((b) => (
+              {bundles.map((b) => (
                 <div key={b.id} className={`glass rounded-lg p-4 flex items-center justify-between ${
-                  data.quizState.activeBundle === b.id ? "neon-border-purple" : ""
+                  quizState.activeBundle === b.id ? "neon-border-purple" : ""
                 }`}>
                   <div>
                     <h3 className="font-display font-semibold text-foreground">{b.name}</h3>
@@ -196,12 +213,10 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* QUIZ CONTROL TAB */}
         {tab === "quiz" && (
           <div className="space-y-6">
             <h2 className="text-xl font-display font-bold text-foreground">Quiz Control</h2>
 
-            {/* Timer Setting */}
             <div className="glass rounded-lg p-5 space-y-3">
               <h3 className="font-display font-semibold text-foreground">Timer Duration</h3>
               <div className="flex gap-2 items-center">
@@ -222,23 +237,22 @@ const AdminDashboard = () => {
                 </Button>
               </div>
               <p className="text-sm text-muted-foreground font-body">
-                Current: {Math.floor(data.quizState.timerDuration / 60)}m {data.quizState.timerDuration % 60}s
+                Current: {Math.floor(quizState.timerDuration / 60)}m {quizState.timerDuration % 60}s
               </p>
             </div>
 
-            {/* Select Bundle */}
             <div className="glass rounded-lg p-5 space-y-3">
               <h3 className="font-display font-semibold text-foreground">Select Question Bundle</h3>
-              {data.bundles.length === 0 ? (
+              {bundles.length === 0 ? (
                 <p className="text-muted-foreground font-body">No bundles available. Create one first.</p>
               ) : (
                 <div className="grid gap-2">
-                  {data.bundles.map((b) => (
+                  {bundles.map((b) => (
                     <button
                       key={b.id}
                       onClick={() => handleSelectBundle(b.id)}
                       className={`p-3 rounded-lg border text-left font-body transition-all ${
-                        data.quizState.activeBundle === b.id
+                        quizState.activeBundle === b.id
                           ? "border-secondary bg-secondary/10 neon-border-purple"
                           : "border-border bg-muted/30 hover:bg-muted/50"
                       }`}
@@ -251,17 +265,16 @@ const AdminDashboard = () => {
               )}
             </div>
 
-            {/* Start/Stop */}
             <div className="glass rounded-lg p-5 space-y-3">
               <h3 className="font-display font-semibold text-foreground">Quiz Status</h3>
-              {data.quizState.isQuizActive ? (
+              {quizState.isQuizActive ? (
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <span className="w-3 h-3 rounded-full bg-primary animate-pulse-neon" />
                     <span className="text-primary font-display font-bold">QUIZ IS LIVE</span>
                   </div>
                   <p className="text-muted-foreground font-body">
-                    Bundle: {activeBundle?.name || "—"} | Teams: {data.teams.filter(t => !t.eliminated).length} active
+                    Bundle: {activeBundle?.name || "—"} | Teams: {teams.filter(t => !t.eliminated).length} active
                   </p>
                   <Button
                     onClick={handleStopQuiz}
@@ -273,13 +286,13 @@ const AdminDashboard = () => {
               ) : (
                 <div className="space-y-3">
                   <p className="text-muted-foreground font-body">
-                    {data.quizState.activeBundle
+                    {quizState.activeBundle
                       ? `Ready to start with "${activeBundle?.name}"`
                       : "Select a bundle first"}
                   </p>
                   <Button
                     onClick={handleStartQuiz}
-                    disabled={!data.quizState.activeBundle}
+                    disabled={!quizState.activeBundle}
                     className="bg-primary text-primary-foreground font-display tracking-wider disabled:opacity-40"
                   >
                     START QUIZ
@@ -290,12 +303,11 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* TEAMS TAB */}
         {tab === "teams" && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-display font-bold text-foreground">
-                Registered Teams ({data.teams.length})
+                Registered Teams ({teams.length})
               </h2>
               <Button
                 onClick={handleClearTeams}
@@ -306,13 +318,13 @@ const AdminDashboard = () => {
               </Button>
             </div>
 
-            {data.teams.length === 0 ? (
+            {teams.length === 0 ? (
               <div className="glass rounded-lg p-8 text-center">
                 <p className="text-muted-foreground font-body text-lg">No teams registered yet.</p>
               </div>
             ) : (
               <div className="grid gap-3">
-                {data.teams.map((t) => (
+                {teams.map((t) => (
                   <div
                     key={t.id}
                     className={`glass rounded-lg p-4 flex items-center justify-between ${
@@ -347,8 +359,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* RESULTS TAB */}
-        {tab === "results" && <TeamResults data={data} />}
+        {tab === "results" && <TeamResults data={adminData} />}
       </main>
     </div>
   );
