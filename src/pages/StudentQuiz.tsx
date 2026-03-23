@@ -189,6 +189,30 @@ const StudentQuiz = () => {
       </div>
     );
   }
+  // SUBMITTED screen
+  if (submitted) {
+    const answeredCount = Object.keys(answers).length;
+    return (
+      <div className="min-h-screen grid-bg flex items-center justify-center p-4">
+        <div className="text-center space-y-6">
+          <h1 className="text-4xl md:text-6xl font-display font-black text-primary neon-text">
+            SUBMITTED ✓
+          </h1>
+          <div className="glass rounded-lg p-8 neon-border max-w-sm mx-auto space-y-4">
+            <p className="text-lg font-body text-foreground">
+              Team: <span className="text-primary font-bold">{team?.teamName}</span>
+            </p>
+            <p className="text-muted-foreground font-body">
+              You answered {answeredCount} of {questions.length} questions.
+            </p>
+            <p className="text-sm text-muted-foreground font-body">
+              Results will be announced by the admin.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // WAITING screen
   if (waiting) {
