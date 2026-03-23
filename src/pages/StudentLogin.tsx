@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { registerTeam, saveTeamSession } from "@/lib/quizStore";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const StudentLogin = () => {
   const [teamName, setTeamName] = useState("");
