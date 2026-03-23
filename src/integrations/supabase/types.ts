@@ -14,7 +14,166 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      answers: {
+        Row: {
+          created_at: string
+          id: string
+          question_id: string
+          selected_option: number
+          team_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          question_id: string
+          selected_option: number
+          team_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          question_id?: string
+          selected_option?: number
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "answers_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bundles: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      questions: {
+        Row: {
+          bundle_id: string
+          correct_answer: number
+          created_at: string
+          id: string
+          options: string[]
+          sort_order: number
+          text: string
+        }
+        Insert: {
+          bundle_id: string
+          correct_answer: number
+          created_at?: string
+          id?: string
+          options: string[]
+          sort_order?: number
+          text: string
+        }
+        Update: {
+          bundle_id?: string
+          correct_answer?: number
+          created_at?: string
+          id?: string
+          options?: string[]
+          sort_order?: number
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "questions_bundle_id_fkey"
+            columns: ["bundle_id"]
+            isOneToOne: false
+            referencedRelation: "bundles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quiz_state: {
+        Row: {
+          active_bundle: string | null
+          id: number
+          is_quiz_active: boolean
+          timer_duration: number
+          timer_paused: boolean
+          timer_started_at: number | null
+        }
+        Insert: {
+          active_bundle?: string | null
+          id?: number
+          is_quiz_active?: boolean
+          timer_duration?: number
+          timer_paused?: boolean
+          timer_started_at?: number | null
+        }
+        Update: {
+          active_bundle?: string | null
+          id?: number
+          is_quiz_active?: boolean
+          timer_duration?: number
+          timer_paused?: boolean
+          timer_started_at?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_state_active_bundle_fkey"
+            columns: ["active_bundle"]
+            isOneToOne: false
+            referencedRelation: "bundles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teams: {
+        Row: {
+          college_name: string
+          eliminated: boolean
+          id: string
+          joined_at: string
+          score: number
+          team_name: string
+          year: string
+        }
+        Insert: {
+          college_name: string
+          eliminated?: boolean
+          id?: string
+          joined_at?: string
+          score?: number
+          team_name: string
+          year: string
+        }
+        Update: {
+          college_name?: string
+          eliminated?: boolean
+          id?: string
+          joined_at?: string
+          score?: number
+          team_name?: string
+          year?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
