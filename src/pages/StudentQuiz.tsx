@@ -122,17 +122,35 @@ const StudentQuiz = () => {
     };
   }, [quizActive, team]);
 
+  const [submitted, setSubmitted] = useState(false);
+
   const handleSelectAnswer = (index: number) => {
-    if (!team || !questions[currentIndex]) return;
+    if (!team || !questions[currentIndex] || !quizActive || submitted) return;
     setSelectedAnswer(index);
     const qId = questions[currentIndex].id;
     const newAnswers = { ...answers, [qId]: index };
     setAnswers(newAnswers);
     submitAnswer(team.id, qId, index);
 
-    // Update session
-    const updatedTeam = { ...team, answers: newAnswers };
-    saveTeamSession(updatedTeam);
+    // Update session with fresh team data
+    const freshData = getAdminData();
+    const freshTeam = freshData.teams.find((t) => t.id === team.id);
+    if (freshTeam) {
+      saveTeamSession(freshTeam);
+      setTeam(freshTeam);
+    }
+  };
+
+  const handleFinalSubmit = () => {
+    if (!team) return;
+    // Ensure all answers are saved
+    const freshData = getAdminData();
+    const freshTeam = freshData.teams.find((t) => t.id === team.id);
+    if (freshTeam) {
+      saveTeamSession(freshTeam);
+      setTeam(freshTeam);
+    }
+    setSubmitted(true);
   };
 
   const goNext = () => {
@@ -167,6 +185,30 @@ const StudentQuiz = () => {
           <p className="text-xl font-body text-destructive-foreground">
             You left the quiz tab. Your team has been disqualified.
           </p>
+        </div>
+      </div>
+    );
+  }
+  // SUBMITTED screen
+  if (submitted) {
+    const answeredCount = Object.keys(answers).length;
+    return (
+      <div className="min-h-screen grid-bg flex items-center justify-center p-4">
+        <div className="text-center space-y-6">
+          <h1 className="text-4xl md:text-6xl font-display font-black text-primary neon-text">
+            SUBMITTED ✓
+          </h1>
+          <div className="glass rounded-lg p-8 neon-border max-w-sm mx-auto space-y-4">
+            <p className="text-lg font-body text-foreground">
+              Team: <span className="text-primary font-bold">{team?.teamName}</span>
+            </p>
+            <p className="text-muted-foreground font-body">
+              You answered {answeredCount} of {questions.length} questions.
+            </p>
+            <p className="text-sm text-muted-foreground font-body">
+              Results will be announced by the admin.
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -268,14 +310,23 @@ const StudentQuiz = () => {
           >
             ← PREV
           </Button>
-          <Button
-            variant="outline"
-            onClick={goNext}
-            disabled={currentIndex === questions.length - 1}
-            className="font-display tracking-wider border-border text-muted-foreground hover:text-foreground"
-          >
-            NEXT →
-          </Button>
+          {currentIndex === questions.length - 1 ? (
+            <Button
+              onClick={handleFinalSubmit}
+              disabled={submitted}
+              className="font-display tracking-wider bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              {submitted ? "✓ SUBMITTED" : "SUBMIT"}
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              onClick={goNext}
+              className="font-display tracking-wider border-border text-muted-foreground hover:text-foreground"
+            >
+              NEXT →
+            </Button>
+          )}
         </div>
 
         {/* Question dots */}
