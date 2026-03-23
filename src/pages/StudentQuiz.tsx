@@ -122,17 +122,35 @@ const StudentQuiz = () => {
     };
   }, [quizActive, team]);
 
+  const [submitted, setSubmitted] = useState(false);
+
   const handleSelectAnswer = (index: number) => {
-    if (!team || !questions[currentIndex]) return;
+    if (!team || !questions[currentIndex] || !quizActive || submitted) return;
     setSelectedAnswer(index);
     const qId = questions[currentIndex].id;
     const newAnswers = { ...answers, [qId]: index };
     setAnswers(newAnswers);
     submitAnswer(team.id, qId, index);
 
-    // Update session
-    const updatedTeam = { ...team, answers: newAnswers };
-    saveTeamSession(updatedTeam);
+    // Update session with fresh team data
+    const freshData = getAdminData();
+    const freshTeam = freshData.teams.find((t) => t.id === team.id);
+    if (freshTeam) {
+      saveTeamSession(freshTeam);
+      setTeam(freshTeam);
+    }
+  };
+
+  const handleFinalSubmit = () => {
+    if (!team) return;
+    // Ensure all answers are saved
+    const freshData = getAdminData();
+    const freshTeam = freshData.teams.find((t) => t.id === team.id);
+    if (freshTeam) {
+      saveTeamSession(freshTeam);
+      setTeam(freshTeam);
+    }
+    setSubmitted(true);
   };
 
   const goNext = () => {
