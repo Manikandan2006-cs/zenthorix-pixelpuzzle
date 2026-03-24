@@ -2,7 +2,7 @@ export interface Question {
   id: string;
   text: string;
   options: string[];
-  correctAnswer: number; // index of correct option
+  correctAnswer: number;
 }
 
 export interface QuestionBundle {
@@ -17,16 +17,18 @@ export interface Team {
   collegeName: string;
   year: string;
   eliminated: boolean;
-  answers: Record<string, number>; // questionId -> selectedOption index
+  answers: Record<string, number>;
   score: number;
   joinedAt: number;
+  currentRound: number;
+  selectedForRound2: boolean;
 }
 
 export interface QuizState {
-  activeBundle: string | null; // bundle id
+  activeBundle: string | null;
   isQuizActive: boolean;
-  timerDuration: number; // seconds
-  timerStartedAt: number | null; // timestamp
+  timerDuration: number; // seconds PER QUESTION
+  timerStartedAt: number | null;
   timerPaused: boolean;
 }
 

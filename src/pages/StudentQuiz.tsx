@@ -10,7 +10,7 @@ import {
   eliminateTeam,
   shuffleArray,
 } from "@/lib/quizStore";
-import { Question, Team, QuizState } from "@/types/quiz";
+import { Question, Team } from "@/types/quiz";
 import { Button } from "@/components/ui/button";
 
 const StudentQuiz = () => {
@@ -21,14 +21,16 @@ const StudentQuiz = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [answers, setAnswers] = useState<Record<string, number>>({});
-  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [perQuestionTime, setPerQuestionTime] = useState(15);
+  const [questionTimeLeft, setQuestionTimeLeft] = useState<number | null>(null);
   const [quizActive, setQuizActive] = useState(false);
   const [eliminated, setEliminated] = useState(false);
   const [waiting, setWaiting] = useState(true);
   const [submitted, setSubmitted] = useState(false);
   const shuffledRef = useRef(false);
+  const questionTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const questionStartRef = useRef<number | null>(null);
 
-  // Load team session from localStorage
   useEffect(() => {
     const session = getTeamSession();
     if (!session) {
@@ -38,7 +40,41 @@ const StudentQuiz = () => {
     setTeamId(session.id);
   }, [navigate]);
 
-  // Poll for quiz state from database
+  // Per-question timer
+  const startQuestionTimer = useCallback((duration: number) => {
+    if (questionTimerRef.current) clearInterval(questionTimerRef.current);
+    questionStartRef.current = Date.now();
+    setQuestionTimeLeft(duration);
+
+    questionTimerRef.current = setInterval(() => {
+      if (!questionStartRef.current) return;
+      const elapsed = Math.floor((Date.now() - questionStartRef.current) / 1000);
+      const remaining = Math.max(0, duration - elapsed);
+      setQuestionTimeLeft(remaining);
+      if (remaining === 0) {
+        if (questionTimerRef.current) clearInterval(questionTimerRef.current);
+      }
+    }, 200);
+  }, []);
+
+  // Auto-advance when question timer hits 0
+  useEffect(() => {
+    if (questionTimeLeft === 0 && quizActive && !submitted) {
+      if (currentIndex < questions.length - 1) {
+        const nextIdx = currentIndex + 1;
+        setCurrentIndex(nextIdx);
+        setSelectedAnswer(answers[questions[nextIdx]?.id] ?? null);
+        startQuestionTimer(perQuestionTime);
+      } else {
+        // Last question - auto submit
+        if (teamId) {
+          recalculateScore(teamId);
+          setSubmitted(true);
+        }
+      }
+    }
+  }, [questionTimeLeft, quizActive, submitted, currentIndex, questions, answers, perQuestionTime, startQuestionTimer, teamId]);
+
   const syncQuizState = useCallback(async () => {
     if (!teamId) return;
 
@@ -62,24 +98,21 @@ const StudentQuiz = () => {
       if (bundle && !shuffledRef.current) {
         setQuestions(shuffleArray(bundle.questions));
         shuffledRef.current = true;
+        setPerQuestionTime(quizState.timerDuration);
+        startQuestionTimer(quizState.timerDuration);
       }
       setQuizActive(true);
       setWaiting(false);
-
-      if (quizState.timerStartedAt && !quizState.timerPaused) {
-        const elapsed = Math.floor((Date.now() - quizState.timerStartedAt) / 1000);
-        const remaining = Math.max(0, quizState.timerDuration - elapsed);
-        setTimeLeft(remaining);
-        if (remaining === 0) {
-          setQuizActive(false);
-        }
-      }
     } else {
-      setQuizActive(false);
-      setWaiting(true);
-      shuffledRef.current = false;
+      if (quizActive && !submitted) {
+        // Quiz was stopped
+      }
+      if (!quizActive) {
+        setWaiting(true);
+        shuffledRef.current = false;
+      }
     }
-  }, [teamId]);
+  }, [teamId, quizActive, submitted, startQuestionTimer]);
 
   useEffect(() => {
     syncQuizState();
@@ -87,7 +120,14 @@ const StudentQuiz = () => {
     return () => clearInterval(interval);
   }, [syncQuizState]);
 
-  // Anti-cheat: detect tab switch / minimize
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (questionTimerRef.current) clearInterval(questionTimerRef.current);
+    };
+  }, []);
+
+  // Anti-cheat
   useEffect(() => {
     if (!quizActive || !teamId) return;
 
@@ -97,12 +137,10 @@ const StudentQuiz = () => {
         eliminateTeam(teamId);
       }
     };
-
     const handleBlur = () => {
       setEliminated(true);
       eliminateTeam(teamId);
     };
-
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = "";
@@ -111,7 +149,6 @@ const StudentQuiz = () => {
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("blur", handleBlur);
     window.addEventListener("beforeunload", handleBeforeUnload);
-
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("blur", handleBlur);
@@ -133,36 +170,35 @@ const StudentQuiz = () => {
     if (!teamId) return;
     await recalculateScore(teamId);
     setSubmitted(true);
+    if (questionTimerRef.current) clearInterval(questionTimerRef.current);
   };
 
   const goNext = () => {
     if (currentIndex < questions.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-      setSelectedAnswer(answers[questions[currentIndex + 1]?.id] ?? null);
+      const nextIdx = currentIndex + 1;
+      setCurrentIndex(nextIdx);
+      setSelectedAnswer(answers[questions[nextIdx]?.id] ?? null);
+      startQuestionTimer(perQuestionTime);
     }
   };
 
   const goPrev = () => {
     if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
-      setSelectedAnswer(answers[questions[currentIndex - 1]?.id] ?? null);
+      const prevIdx = currentIndex - 1;
+      setCurrentIndex(prevIdx);
+      setSelectedAnswer(answers[questions[prevIdx]?.id] ?? null);
+      startQuestionTimer(perQuestionTime);
     }
-  };
-
-  const formatTime = (s: number) => {
-    const mins = Math.floor(s / 60);
-    const secs = s % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
   if (eliminated) {
     return (
       <div className="min-h-screen eliminated-overlay flex items-center justify-center p-4">
         <div className="text-center space-y-4">
-          <h1 className="text-6xl md:text-8xl font-display font-black text-destructive animate-pulse-neon">
-            ELIMINATED
+          <h1 className="text-5xl md:text-7xl font-display font-bold text-destructive">
+            Eliminated
           </h1>
-          <p className="text-xl font-body text-destructive-foreground">
+          <p className="text-lg font-body text-muted-foreground">
             You left the quiz tab. Your team has been disqualified.
           </p>
         </div>
@@ -173,19 +209,22 @@ const StudentQuiz = () => {
   if (submitted) {
     const answeredCount = Object.keys(answers).length;
     return (
-      <div className="min-h-screen grid-bg flex items-center justify-center p-4">
+      <div className="min-h-screen soft-bg flex items-center justify-center p-4">
         <div className="text-center space-y-6">
-          <h1 className="text-4xl md:text-6xl font-display font-black text-primary neon-text">
-            SUBMITTED ✓
+          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+            <span className="text-3xl">✓</span>
+          </div>
+          <h1 className="text-3xl md:text-4xl font-display font-bold text-foreground">
+            Submitted
           </h1>
-          <div className="glass rounded-lg p-8 neon-border max-w-sm mx-auto space-y-4">
-            <p className="text-lg font-body text-foreground">
-              Team: <span className="text-primary font-bold">{team?.teamName}</span>
+          <div className="card-surface subtle-shadow-lg p-6 max-w-sm mx-auto space-y-3">
+            <p className="text-base font-body text-foreground">
+              Team: <span className="font-semibold text-primary">{team?.teamName}</span>
             </p>
-            <p className="text-muted-foreground font-body">
+            <p className="text-muted-foreground font-body text-sm">
               You answered {answeredCount} of {questions.length} questions.
             </p>
-            <p className="text-sm text-muted-foreground font-body">
+            <p className="text-xs text-muted-foreground font-body">
               Results will be announced by the admin.
             </p>
           </div>
@@ -196,17 +235,17 @@ const StudentQuiz = () => {
 
   if (waiting) {
     return (
-      <div className="min-h-screen grid-bg flex items-center justify-center p-4">
+      <div className="min-h-screen soft-bg flex items-center justify-center p-4">
         <div className="text-center space-y-6">
-          <h1 className="text-3xl md:text-4xl font-display font-bold neon-text text-primary">
-            ZENTHORIX
+          <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
+            Zenthorix
           </h1>
-          <div className="glass rounded-lg p-8 neon-border max-w-sm mx-auto space-y-4">
-            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-lg font-body text-foreground">
-              Welcome, <span className="text-primary font-bold">{team?.teamName}</span>
+          <div className="card-surface subtle-shadow-lg p-6 max-w-sm mx-auto space-y-4">
+            <div className="w-10 h-10 border-3 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-base font-body text-foreground">
+              Welcome, <span className="font-semibold text-primary">{team?.teamName}</span>
             </p>
-            <p className="text-muted-foreground font-body">
+            <p className="text-muted-foreground font-body text-sm">
               Waiting for the admin to start the quiz...
             </p>
           </div>
@@ -219,49 +258,61 @@ const StudentQuiz = () => {
   if (!currentQ) return null;
 
   const optionLabels = ["A", "B", "C", "D"];
+  const timePercent = perQuestionTime > 0 ? ((questionTimeLeft ?? 0) / perQuestionTime) * 100 : 0;
 
   return (
-    <div className="min-h-screen grid-bg flex flex-col">
-      <header className="glass border-b border-border px-4 py-3 flex items-center justify-between">
+    <div className="min-h-screen soft-bg flex flex-col">
+      <header className="bg-card border-b border-border px-4 py-3 flex items-center justify-between subtle-shadow">
         <div>
-          <span className="font-display text-sm text-primary font-bold">ZENTHORIX</span>
+          <span className="font-display text-sm text-primary font-semibold">Zenthorix</span>
           <span className="text-muted-foreground text-sm ml-2 font-body">| {team?.teamName}</span>
         </div>
         <div className="flex items-center gap-4">
           <span className="text-sm text-muted-foreground font-body">
             {currentIndex + 1} / {questions.length}
           </span>
-          {timeLeft !== null && (
+          {questionTimeLeft !== null && (
             <span
               className={`font-display font-bold text-lg tabular-nums ${
-                timeLeft <= 30 ? "text-destructive animate-pulse-neon" : "text-primary neon-text"
+                questionTimeLeft <= 3 ? "text-destructive" : "text-foreground"
               }`}
             >
-              {formatTime(timeLeft)}
+              {questionTimeLeft}s
             </span>
           )}
         </div>
       </header>
 
+      {/* Timer progress bar */}
+      <div className="h-1 bg-muted">
+        <div
+          className={`h-full transition-all duration-200 ${
+            (questionTimeLeft ?? 0) <= 3 ? "bg-destructive" : "bg-primary"
+          }`}
+          style={{ width: `${timePercent}%` }}
+        />
+      </div>
+
       <main className="flex-1 flex flex-col items-center justify-center p-4 max-w-2xl mx-auto w-full">
-        <div className="glass rounded-lg p-6 w-full space-y-6 neon-border">
-          <h2 className="text-xl md:text-2xl font-body font-semibold text-foreground leading-relaxed">
+        <div className="card-surface subtle-shadow-lg p-6 w-full space-y-5">
+          <h2 className="text-lg md:text-xl font-body font-semibold text-foreground leading-relaxed">
             {currentQ.text}
           </h2>
 
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {currentQ.options.map((opt, i) => (
               <button
                 key={i}
                 onClick={() => handleSelectAnswer(i)}
-                className={`w-full text-left p-4 rounded-lg border font-body text-lg transition-all flex items-center gap-3 ${
+                disabled={(questionTimeLeft ?? 1) === 0}
+                className={`w-full text-left p-3.5 rounded-lg border font-body text-base transition-all flex items-center gap-3 ${
                   selectedAnswer === i
-                    ? "border-primary bg-primary/10 neon-border"
-                    : "border-border bg-muted/30 hover:bg-muted/50 hover:border-muted-foreground/30"
-                }`}
+                    ? "border-primary bg-primary/5"
+                    : "border-border bg-card hover:bg-muted/50"
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 <span
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-display font-bold shrink-0 ${
+                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-display font-bold shrink-0 ${
                     selectedAnswer === i
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted text-muted-foreground"
@@ -277,47 +328,48 @@ const StudentQuiz = () => {
           </div>
         </div>
 
-        <div className="flex gap-4 mt-6">
+        <div className="flex gap-3 mt-5">
           <Button
             variant="outline"
             onClick={goPrev}
             disabled={currentIndex === 0}
-            className="font-display tracking-wider border-border text-muted-foreground hover:text-foreground"
+            className="font-display tracking-wide"
           >
-            ← PREV
+            ← Prev
           </Button>
           {currentIndex === questions.length - 1 ? (
             <Button
               onClick={handleFinalSubmit}
               disabled={submitted}
-              className="font-display tracking-wider bg-primary text-primary-foreground hover:bg-primary/90"
+              className="font-display tracking-wide"
             >
-              {submitted ? "✓ SUBMITTED" : "SUBMIT"}
+              {submitted ? "✓ Submitted" : "Submit"}
             </Button>
           ) : (
             <Button
               variant="outline"
               onClick={goNext}
-              className="font-display tracking-wider border-border text-muted-foreground hover:text-foreground"
+              className="font-display tracking-wide"
             >
-              NEXT →
+              Next →
             </Button>
           )}
         </div>
 
-        <div className="flex flex-wrap gap-2 mt-6 justify-center">
+        <div className="flex flex-wrap gap-1.5 mt-5 justify-center">
           {questions.map((q, i) => (
             <button
               key={q.id}
               onClick={() => {
                 setCurrentIndex(i);
                 setSelectedAnswer(answers[q.id] ?? null);
+                startQuestionTimer(perQuestionTime);
               }}
-              className={`w-8 h-8 rounded-full text-xs font-display font-bold transition-all ${
+              className={`w-7 h-7 rounded-full text-xs font-display font-semibold transition-all ${
                 i === currentIndex
-                  ? "bg-primary text-primary-foreground neon-border"
+                  ? "bg-primary text-primary-foreground"
                   : answers[q.id] !== undefined
-                  ? "bg-secondary/30 text-secondary border border-secondary/50"
+                  ? "bg-secondary/20 text-secondary border border-secondary/30"
                   : "bg-muted text-muted-foreground"
               }`}
             >

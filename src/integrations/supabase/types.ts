@@ -147,28 +147,34 @@ export type Database = {
       teams: {
         Row: {
           college_name: string
+          current_round: number
           eliminated: boolean
           id: string
           joined_at: string
           score: number
+          selected_for_round2: boolean
           team_name: string
           year: string
         }
         Insert: {
           college_name: string
+          current_round?: number
           eliminated?: boolean
           id?: string
           joined_at?: string
           score?: number
+          selected_for_round2?: boolean
           team_name: string
           year: string
         }
         Update: {
           college_name?: string
+          current_round?: number
           eliminated?: boolean
           id?: string
           joined_at?: string
           score?: number
+          selected_for_round2?: boolean
           team_name?: string
           year?: string
         }
