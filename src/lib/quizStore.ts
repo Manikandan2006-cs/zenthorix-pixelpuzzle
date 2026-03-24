@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { QuestionBundle, Question, Team, QuizState, ADMIN_PASSWORD } from "@/types/quiz";
+import { QuestionBundle, Team, QuizState } from "@/types/quiz";
 
 // ─── Bundle operations ───
 
@@ -50,7 +50,6 @@ export async function addBundle(bundle: QuestionBundle) {
 
 export async function updateBundle(bundle: QuestionBundle) {
   await supabase.from("bundles").update({ name: bundle.name }).eq("id", bundle.id);
-  // Delete old questions and re-insert
   await supabase.from("questions").delete().eq("bundle_id", bundle.id);
   if (bundle.questions.length > 0) {
     const rows = bundle.questions.map((q, i) => ({
@@ -66,7 +65,6 @@ export async function updateBundle(bundle: QuestionBundle) {
 }
 
 export async function deleteBundle(bundleId: string) {
-  // Clear active bundle if it's the one being deleted
   const state = await fetchQuizState();
   if (state.activeBundle === bundleId) {
     await supabase.from("quiz_state").update({ active_bundle: null, is_quiz_active: false }).eq("id", 1);
@@ -78,7 +76,7 @@ export async function deleteBundle(bundleId: string) {
 
 export async function fetchQuizState(): Promise<QuizState> {
   const { data } = await supabase.from("quiz_state").select("*").eq("id", 1).single();
-  if (!data) return { activeBundle: null, isQuizActive: false, timerDuration: 300, timerStartedAt: null, timerPaused: false };
+  if (!data) return { activeBundle: null, isQuizActive: false, timerDuration: 15, timerStartedAt: null, timerPaused: false };
   return {
     activeBundle: data.active_bundle,
     isQuizActive: data.is_quiz_active,
@@ -138,6 +136,8 @@ export async function fetchTeams(): Promise<Team[]> {
       answers: teamAnswers,
       score: t.score,
       joinedAt: new Date(t.joined_at).getTime(),
+      currentRound: (t as any).current_round ?? 1,
+      selectedForRound2: (t as any).selected_for_round2 ?? false,
     };
   });
 }
@@ -158,11 +158,44 @@ export async function registerTeam(info: { teamName: string; collegeName: string
     answers: {},
     score: data.score,
     joinedAt: new Date(data.joined_at).getTime(),
+    currentRound: 1,
+    selectedForRound2: false,
+  };
+}
+
+export async function findTeamByCredentials(teamName: string, collegeName: string, year: string): Promise<Team | null> {
+  const { data } = await supabase
+    .from("teams")
+    .select("*")
+    .eq("team_name", teamName)
+    .eq("college_name", collegeName)
+    .eq("year", year)
+    .single();
+  if (!data) return null;
+  return {
+    id: data.id,
+    teamName: data.team_name,
+    collegeName: data.college_name,
+    year: data.year,
+    eliminated: data.eliminated,
+    answers: {},
+    score: data.score,
+    joinedAt: new Date(data.joined_at).getTime(),
+    currentRound: (data as any).current_round ?? 1,
+    selectedForRound2: (data as any).selected_for_round2 ?? false,
   };
 }
 
 export async function eliminateTeam(teamId: string) {
   await supabase.from("teams").update({ eliminated: true }).eq("id", teamId);
+}
+
+export async function selectTeamForRound2(teamId: string) {
+  await supabase.from("teams").update({ selected_for_round2: true, current_round: 2, eliminated: false } as any).eq("id", teamId);
+}
+
+export async function deselectTeamFromRound2(teamId: string) {
+  await supabase.from("teams").update({ selected_for_round2: false, current_round: 1 } as any).eq("id", teamId);
 }
 
 export async function submitAnswer(teamId: string, questionId: string, answerIndex: number) {
@@ -173,7 +206,6 @@ export async function submitAnswer(teamId: string, questionId: string, answerInd
 }
 
 export async function recalculateScore(teamId: string) {
-  // Get team's answers and the active bundle questions
   const state = await fetchQuizState();
   if (!state.activeBundle) return;
 
@@ -202,7 +234,7 @@ export async function clearAllTeams() {
   await supabase.from("teams").delete().neq("id", "00000000-0000-0000-0000-000000000000");
 }
 
-// ─── Team session (localStorage for current tab only) ───
+// ─── Team session (localStorage) ───
 
 const TEAM_SESSION_KEY = "zenthorix_team_session";
 
@@ -222,7 +254,6 @@ export function clearTeamSession() {
   localStorage.removeItem(TEAM_SESSION_KEY);
 }
 
-// Shuffle array (Fisher-Yates)
 export function shuffleArray<T>(array: T[]): T[] {
   const arr = [...array];
   for (let i = arr.length - 1; i > 0; i--) {

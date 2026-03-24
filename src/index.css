@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,51 +6,50 @@
 
 @layer base {
   :root {
-    --background: 230 25% 7%;
-    --foreground: 180 100% 95%;
+    --background: 220 20% 97%;
+    --foreground: 220 25% 10%;
 
-    --card: 230 20% 12%;
-    --card-foreground: 180 100% 95%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 25% 10%;
 
-    --popover: 230 20% 12%;
-    --popover-foreground: 180 100% 95%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 25% 10%;
 
-    --primary: 170 100% 50%;
-    --primary-foreground: 230 25% 7%;
+    --primary: 220 70% 50%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 280 100% 65%;
+    --secondary: 260 50% 55%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 230 15% 18%;
-    --muted-foreground: 220 15% 55%;
+    --muted: 220 15% 92%;
+    --muted-foreground: 220 10% 45%;
 
-    --accent: 45 100% 55%;
-    --accent-foreground: 230 25% 7%;
+    --accent: 35 90% 55%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 85% 55%;
+    --destructive: 0 65% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 230 20% 20%;
-    --input: 230 20% 20%;
-    --ring: 170 100% 50%;
+    --border: 220 15% 88%;
+    --input: 220 15% 88%;
+    --ring: 220 70% 50%;
 
     --radius: 0.75rem;
 
-    --neon-glow: 170 100% 50%;
-    --neon-purple: 280 100% 65%;
-    --neon-gold: 45 100% 55%;
+    --font-display: 'Space Grotesk', sans-serif;
+    --font-body: 'Inter', sans-serif;
 
-    --font-display: 'Orbitron', monospace;
-    --font-body: 'Rajdhani', sans-serif;
+    --sidebar-background: 220 20% 95%;
+    --sidebar-foreground: 220 25% 10%;
+    --sidebar-primary: 220 70% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 15% 92%;
+    --sidebar-accent-foreground: 220 25% 10%;
+    --sidebar-border: 220 15% 88%;
+    --sidebar-ring: 220 70% 50%;
 
-    --sidebar-background: 230 20% 10%;
-    --sidebar-foreground: 180 100% 95%;
-    --sidebar-primary: 170 100% 50%;
-    --sidebar-primary-foreground: 230 25% 7%;
-    --sidebar-accent: 230 15% 18%;
-    --sidebar-accent-foreground: 180 100% 95%;
-    --sidebar-border: 230 20% 20%;
-    --sidebar-ring: 170 100% 50%;
+    --success: 150 50% 40%;
+    --success-foreground: 0 0% 100%;
   }
 }
 
@@ -70,44 +69,27 @@
 }
 
 @layer utilities {
-  .neon-text {
-    text-shadow: 0 0 10px hsl(var(--neon-glow) / 0.8),
-                 0 0 20px hsl(var(--neon-glow) / 0.5),
-                 0 0 40px hsl(var(--neon-glow) / 0.3);
+  .subtle-shadow {
+    box-shadow: 0 1px 3px hsl(220 25% 10% / 0.06),
+                0 4px 12px hsl(220 25% 10% / 0.04);
   }
 
-  .neon-text-purple {
-    text-shadow: 0 0 10px hsl(var(--neon-purple) / 0.8),
-                 0 0 20px hsl(var(--neon-purple) / 0.5),
-                 0 0 40px hsl(var(--neon-purple) / 0.3);
+  .subtle-shadow-lg {
+    box-shadow: 0 4px 6px hsl(220 25% 10% / 0.05),
+                0 10px 30px hsl(220 25% 10% / 0.08);
   }
 
-  .neon-border {
-    box-shadow: 0 0 5px hsl(var(--neon-glow) / 0.5),
-                0 0 10px hsl(var(--neon-glow) / 0.3),
-                inset 0 0 5px hsl(var(--neon-glow) / 0.1);
-  }
-
-  .neon-border-purple {
-    box-shadow: 0 0 5px hsl(var(--neon-purple) / 0.5),
-                0 0 10px hsl(var(--neon-purple) / 0.3),
-                inset 0 0 5px hsl(var(--neon-purple) / 0.1);
-  }
-
-  .glass {
-    background: hsl(var(--card) / 0.6);
-    backdrop-filter: blur(12px);
-    border: 1px solid hsl(var(--border) / 0.5);
+  .card-surface {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
   }
 
   .eliminated-overlay {
-    background: radial-gradient(circle, hsl(0 85% 20% / 0.9), hsl(0 85% 10% / 0.95));
+    background: hsl(0 65% 97%);
   }
 
-  .grid-bg {
-    background-image: 
-      linear-gradient(hsl(var(--border) / 0.15) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(var(--border) / 0.15) 1px, transparent 1px);
-    background-size: 40px 40px;
+  .soft-bg {
+    background: linear-gradient(135deg, hsl(220 20% 97%) 0%, hsl(240 15% 95%) 100%);
   }
 }

@@ -13,6 +13,8 @@ import {
   setTimerDuration,
   eliminateTeam,
   clearAllTeams,
+  selectTeamForRound2,
+  deselectTeamFromRound2,
 } from "@/lib/quizStore";
 import { QuestionBundle, Team, QuizState } from "@/types/quiz";
 import { Button } from "@/components/ui/button";
@@ -27,12 +29,12 @@ const AdminDashboard = () => {
   const [quizState, setQuizState] = useState<QuizState>({
     activeBundle: null,
     isQuizActive: false,
-    timerDuration: 300,
+    timerDuration: 15,
     timerStartedAt: null,
     timerPaused: false,
   });
   const [tab, setTab] = useState<"bundles" | "quiz" | "teams" | "results">("bundles");
-  const [timerInput, setTimerInput] = useState("300");
+  const [timerInput, setTimerInput] = useState("15");
   const [showBundleEditor, setShowBundleEditor] = useState(false);
   const [editingBundle, setEditingBundle] = useState<QuestionBundle | null>(null);
 
@@ -69,15 +71,8 @@ const AdminDashboard = () => {
     refresh();
   };
 
-  const handleStartQuiz = async () => {
-    await startQuiz();
-    refresh();
-  };
-
-  const handleStopQuiz = async () => {
-    await stopQuiz();
-    refresh();
-  };
+  const handleStartQuiz = async () => { await startQuiz(); refresh(); };
+  const handleStopQuiz = async () => { await stopQuiz(); refresh(); };
 
   const handleSaveBundle = async (bundle: QuestionBundle) => {
     if (editingBundle) {
@@ -90,61 +85,55 @@ const AdminDashboard = () => {
     refresh();
   };
 
-  const handleDeleteBundle = async (id: string) => {
-    await deleteBundle(id);
-    refresh();
-  };
+  const handleDeleteBundle = async (id: string) => { await deleteBundle(id); refresh(); };
+  const handleEliminateTeam = async (id: string) => { await eliminateTeam(id); refresh(); };
+  const handleClearTeams = async () => { await clearAllTeams(); refresh(); };
 
-  const handleEliminateTeam = async (id: string) => {
-    await eliminateTeam(id);
-    refresh();
-  };
-
-  const handleClearTeams = async () => {
-    await clearAllTeams();
+  const handleToggleRound2 = async (teamId: string, isSelected: boolean) => {
+    if (isSelected) {
+      await deselectTeamFromRound2(teamId);
+    } else {
+      await selectTeamForRound2(teamId);
+    }
     refresh();
   };
 
   const tabs = [
-    { id: "bundles" as const, label: "BUNDLES" },
-    { id: "quiz" as const, label: "QUIZ CONTROL" },
-    { id: "teams" as const, label: "TEAMS" },
-    { id: "results" as const, label: "RESULTS" },
+    { id: "bundles" as const, label: "Bundles" },
+    { id: "quiz" as const, label: "Quiz Control" },
+    { id: "teams" as const, label: "Teams" },
+    { id: "results" as const, label: "Results" },
   ];
 
   const activeBundle = bundles.find((b) => b.id === quizState.activeBundle);
+  const round1Teams = teams.filter((t) => !t.selectedForRound2);
+  const round2Teams = teams.filter((t) => t.selectedForRound2);
 
-  // Build AdminData-like object for TeamResults
-  const adminData = {
-    bundles,
-    teams,
-    quizState,
-    adminPassword: "",
-  };
+  const adminData = { bundles, teams, quizState, adminPassword: "" };
 
   return (
-    <div className="min-h-screen grid-bg">
-      <header className="glass border-b border-border px-4 py-3 flex items-center justify-between">
+    <div className="min-h-screen soft-bg">
+      <header className="bg-card border-b border-border px-4 py-3 flex items-center justify-between subtle-shadow">
         <div className="flex items-center gap-3">
-          <h1 className="font-display text-xl font-bold text-secondary neon-text-purple">ZENTHORIX</h1>
-          <span className="text-muted-foreground font-body text-sm">Admin Portal</span>
+          <h1 className="font-display text-lg font-bold text-foreground">Zenthorix</h1>
+          <span className="text-muted-foreground font-body text-sm">Admin</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${quizState.isQuizActive ? "bg-primary animate-pulse-neon" : "bg-muted-foreground"}`} />
+          <span className={`w-2 h-2 rounded-full ${quizState.isQuizActive ? "bg-primary" : "bg-muted-foreground"}`} />
           <span className="text-sm font-body text-muted-foreground">
-            {quizState.isQuizActive ? "LIVE" : "IDLE"}
+            {quizState.isQuizActive ? "Live" : "Idle"}
           </span>
         </div>
       </header>
 
-      <nav className="glass border-b border-border px-4 flex gap-1 overflow-x-auto">
+      <nav className="bg-card border-b border-border px-4 flex gap-1 overflow-x-auto">
         {tabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`px-4 py-3 font-display text-sm font-semibold tracking-wider transition-colors whitespace-nowrap ${
+            className={`px-4 py-3 font-display text-sm font-medium tracking-wide transition-colors whitespace-nowrap ${
               tab === t.id
-                ? "text-secondary border-b-2 border-secondary"
+                ? "text-primary border-b-2 border-primary"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -157,12 +146,12 @@ const AdminDashboard = () => {
         {tab === "bundles" && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-display font-bold text-foreground">Question Bundles</h2>
+              <h2 className="text-xl font-display font-semibold text-foreground">Question Bundles</h2>
               <Button
                 onClick={() => { setEditingBundle(null); setShowBundleEditor(true); }}
-                className="bg-secondary text-secondary-foreground font-display tracking-wider"
+                className="font-display tracking-wide"
               >
-                + NEW BUNDLE
+                + New Bundle
               </Button>
             </div>
 
@@ -175,37 +164,25 @@ const AdminDashboard = () => {
             )}
 
             {bundles.length === 0 && !showBundleEditor && (
-              <div className="glass rounded-lg p-8 text-center">
-                <p className="text-muted-foreground font-body text-lg">No bundles yet. Create one to get started.</p>
+              <div className="card-surface subtle-shadow p-8 text-center">
+                <p className="text-muted-foreground font-body">No bundles yet. Create one to get started.</p>
               </div>
             )}
 
             <div className="grid gap-3">
               {bundles.map((b) => (
-                <div key={b.id} className={`glass rounded-lg p-4 flex items-center justify-between ${
-                  quizState.activeBundle === b.id ? "neon-border-purple" : ""
+                <div key={b.id} className={`card-surface subtle-shadow p-4 flex items-center justify-between ${
+                  quizState.activeBundle === b.id ? "ring-2 ring-primary/30" : ""
                 }`}>
                   <div>
                     <h3 className="font-display font-semibold text-foreground">{b.name}</h3>
                     <p className="text-sm text-muted-foreground font-body">{b.questions.length} questions</p>
                   </div>
                   <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => { setEditingBundle(b); setShowBundleEditor(true); }}
-                      className="font-display text-xs border-border text-muted-foreground"
-                    >
-                      EDIT
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeleteBundle(b.id)}
-                      className="font-display text-xs border-destructive text-destructive"
-                    >
-                      DELETE
-                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => { setEditingBundle(b); setShowBundleEditor(true); }}
+                      className="font-display text-xs">Edit</Button>
+                    <Button variant="outline" size="sm" onClick={() => handleDeleteBundle(b.id)}
+                      className="font-display text-xs text-destructive border-destructive/30">Delete</Button>
                   </div>
                 </div>
               ))}
@@ -214,37 +191,33 @@ const AdminDashboard = () => {
         )}
 
         {tab === "quiz" && (
-          <div className="space-y-6">
-            <h2 className="text-xl font-display font-bold text-foreground">Quiz Control</h2>
+          <div className="space-y-5">
+            <h2 className="text-xl font-display font-semibold text-foreground">Quiz Control</h2>
 
-            <div className="glass rounded-lg p-5 space-y-3">
-              <h3 className="font-display font-semibold text-foreground">Timer Duration</h3>
+            <div className="card-surface subtle-shadow p-5 space-y-3">
+              <h3 className="font-display font-medium text-foreground">Timer Per Question</h3>
               <div className="flex gap-2 items-center">
                 <Input
                   type="number"
                   value={timerInput}
                   onChange={(e) => setTimerInput(e.target.value)}
-                  className="bg-muted border-border text-foreground w-32"
-                  min={10}
+                  className="w-24"
+                  min={5}
                 />
-                <span className="text-muted-foreground font-body">seconds</span>
-                <Button
-                  onClick={handleSetTimer}
-                  variant="outline"
-                  className="font-display text-xs border-border text-muted-foreground"
-                >
-                  SET
+                <span className="text-muted-foreground font-body text-sm">seconds per question</span>
+                <Button onClick={handleSetTimer} variant="outline" size="sm" className="font-display text-xs">
+                  Set
                 </Button>
               </div>
               <p className="text-sm text-muted-foreground font-body">
-                Current: {Math.floor(quizState.timerDuration / 60)}m {quizState.timerDuration % 60}s
+                Current: {quizState.timerDuration}s per question
               </p>
             </div>
 
-            <div className="glass rounded-lg p-5 space-y-3">
-              <h3 className="font-display font-semibold text-foreground">Select Question Bundle</h3>
+            <div className="card-surface subtle-shadow p-5 space-y-3">
+              <h3 className="font-display font-medium text-foreground">Select Bundle</h3>
               {bundles.length === 0 ? (
-                <p className="text-muted-foreground font-body">No bundles available. Create one first.</p>
+                <p className="text-muted-foreground font-body text-sm">No bundles available.</p>
               ) : (
                 <div className="grid gap-2">
                   {bundles.map((b) => (
@@ -253,8 +226,8 @@ const AdminDashboard = () => {
                       onClick={() => handleSelectBundle(b.id)}
                       className={`p-3 rounded-lg border text-left font-body transition-all ${
                         quizState.activeBundle === b.id
-                          ? "border-secondary bg-secondary/10 neon-border-purple"
-                          : "border-border bg-muted/30 hover:bg-muted/50"
+                          ? "border-primary bg-primary/5"
+                          : "border-border bg-card hover:bg-muted/50"
                       }`}
                     >
                       <span className="font-semibold text-foreground">{b.name}</span>
@@ -265,37 +238,28 @@ const AdminDashboard = () => {
               )}
             </div>
 
-            <div className="glass rounded-lg p-5 space-y-3">
-              <h3 className="font-display font-semibold text-foreground">Quiz Status</h3>
+            <div className="card-surface subtle-shadow p-5 space-y-3">
+              <h3 className="font-display font-medium text-foreground">Status</h3>
               {quizState.isQuizActive ? (
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-primary animate-pulse-neon" />
-                    <span className="text-primary font-display font-bold">QUIZ IS LIVE</span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse" />
+                    <span className="text-primary font-display font-semibold">Quiz is Live</span>
                   </div>
-                  <p className="text-muted-foreground font-body">
-                    Bundle: {activeBundle?.name || "—"} | Teams: {teams.filter(t => !t.eliminated).length} active
+                  <p className="text-muted-foreground font-body text-sm">
+                    Bundle: {activeBundle?.name || "—"} · Teams: {teams.filter(t => !t.eliminated).length} active
                   </p>
-                  <Button
-                    onClick={handleStopQuiz}
-                    className="bg-destructive text-destructive-foreground font-display tracking-wider"
-                  >
-                    STOP QUIZ
+                  <Button onClick={handleStopQuiz} variant="destructive" className="font-display tracking-wide">
+                    Stop Quiz
                   </Button>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <p className="text-muted-foreground font-body">
-                    {quizState.activeBundle
-                      ? `Ready to start with "${activeBundle?.name}"`
-                      : "Select a bundle first"}
+                  <p className="text-muted-foreground font-body text-sm">
+                    {quizState.activeBundle ? `Ready: "${activeBundle?.name}"` : "Select a bundle first"}
                   </p>
-                  <Button
-                    onClick={handleStartQuiz}
-                    disabled={!quizState.activeBundle}
-                    className="bg-primary text-primary-foreground font-display tracking-wider disabled:opacity-40"
-                  >
-                    START QUIZ
+                  <Button onClick={handleStartQuiz} disabled={!quizState.activeBundle} className="font-display tracking-wide">
+                    Start Quiz
                   </Button>
                 </div>
               )}
@@ -304,58 +268,100 @@ const AdminDashboard = () => {
         )}
 
         {tab === "teams" && (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-display font-bold text-foreground">
-                Registered Teams ({teams.length})
+              <h2 className="text-xl font-display font-semibold text-foreground">
+                Teams ({teams.length})
               </h2>
-              <Button
-                onClick={handleClearTeams}
-                variant="outline"
-                className="font-display text-xs border-destructive text-destructive"
-              >
-                CLEAR ALL
+              <Button onClick={handleClearTeams} variant="outline" size="sm"
+                className="font-display text-xs text-destructive border-destructive/30">
+                Clear All
               </Button>
             </div>
 
-            {teams.length === 0 ? (
-              <div className="glass rounded-lg p-8 text-center">
-                <p className="text-muted-foreground font-body text-lg">No teams registered yet.</p>
-              </div>
-            ) : (
-              <div className="grid gap-3">
-                {teams.map((t) => (
-                  <div
-                    key={t.id}
-                    className={`glass rounded-lg p-4 flex items-center justify-between ${
+            {/* Round 1 Teams */}
+            <div className="space-y-3">
+              <h3 className="font-display font-medium text-foreground flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-primary" />
+                Round 1 ({round1Teams.length})
+              </h3>
+              {round1Teams.length === 0 ? (
+                <div className="card-surface subtle-shadow p-6 text-center">
+                  <p className="text-muted-foreground font-body text-sm">No teams in Round 1.</p>
+                </div>
+              ) : (
+                <div className="grid gap-2">
+                  {round1Teams.map((t) => (
+                    <div key={t.id} className={`card-surface subtle-shadow p-3 flex items-center justify-between ${
                       t.eliminated ? "opacity-50" : ""
-                    }`}
-                  >
-                    <div>
-                      <h3 className="font-display font-semibold text-foreground">
-                        {t.teamName}
-                        {t.eliminated && (
-                          <span className="ml-2 text-xs text-destructive font-body">[ELIMINATED]</span>
+                    }`}>
+                      <div>
+                        <h4 className="font-display font-medium text-foreground text-sm">
+                          {t.teamName}
+                          {t.eliminated && <span className="ml-2 text-xs text-destructive">[Eliminated]</span>}
+                        </h4>
+                        <p className="text-xs text-muted-foreground font-body">{t.collegeName} · {t.year}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        {!t.eliminated && (
+                          <>
+                            <Button variant="outline" size="sm" onClick={() => handleToggleRound2(t.id, false)}
+                              className="font-display text-xs text-primary border-primary/30">
+                              → Round 2
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => handleEliminateTeam(t.id)}
+                              className="font-display text-xs text-destructive border-destructive/30">
+                              Eliminate
+                            </Button>
+                          </>
                         )}
-                      </h3>
-                      <p className="text-sm text-muted-foreground font-body">
-                        {t.collegeName} • {t.year}
-                      </p>
+                      </div>
                     </div>
-                    {!t.eliminated && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEliminateTeam(t.id)}
-                        className="font-display text-xs border-destructive text-destructive"
-                      >
-                        ELIMINATE
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Round 2 Teams */}
+            <div className="space-y-3">
+              <h3 className="font-display font-medium text-foreground flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-secondary" />
+                Round 2 ({round2Teams.length})
+              </h3>
+              {round2Teams.length === 0 ? (
+                <div className="card-surface subtle-shadow p-6 text-center">
+                  <p className="text-muted-foreground font-body text-sm">No teams selected for Round 2 yet.</p>
+                </div>
+              ) : (
+                <div className="grid gap-2">
+                  {round2Teams.map((t) => (
+                    <div key={t.id} className={`card-surface subtle-shadow p-3 flex items-center justify-between ring-1 ring-secondary/20 ${
+                      t.eliminated ? "opacity-50" : ""
+                    }`}>
+                      <div>
+                        <h4 className="font-display font-medium text-foreground text-sm">
+                          {t.teamName}
+                          {t.eliminated && <span className="ml-2 text-xs text-destructive">[Eliminated]</span>}
+                        </h4>
+                        <p className="text-xs text-muted-foreground font-body">{t.collegeName} · {t.year}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => handleToggleRound2(t.id, true)}
+                          className="font-display text-xs text-muted-foreground">
+                          ← Round 1
+                        </Button>
+                        {!t.eliminated && (
+                          <Button variant="outline" size="sm" onClick={() => handleEliminateTeam(t.id)}
+                            className="font-display text-xs text-destructive border-destructive/30">
+                            Eliminate
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
