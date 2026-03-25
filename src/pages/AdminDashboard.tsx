@@ -89,12 +89,13 @@ const AdminDashboard = () => {
   const handleEliminateTeam = async (id: string) => { await eliminateTeam(id); refresh(); };
   const handleClearTeams = async () => { await clearAllTeams(); refresh(); };
 
-  const handleToggleRound2 = async (teamId: string, isSelected: boolean) => {
-    if (isSelected) {
-      await deselectTeamFromRound2(teamId);
-    } else {
-      await selectTeamForRound2(teamId);
-    }
+  const handleSelectForRound2 = async (teamId: string) => {
+    await selectTeamForRound2(teamId);
+    refresh();
+  };
+
+  const handleDeselectFromRound2 = async (teamId: string) => {
+    await deselectTeamFromRound2(teamId);
     refresh();
   };
 
@@ -300,20 +301,14 @@ const AdminDashboard = () => {
                           {t.teamName}
                           {t.eliminated && <span className="ml-2 text-xs text-destructive">[Eliminated]</span>}
                         </h4>
-                        <p className="text-xs text-muted-foreground font-body">{t.collegeName} · {t.year}</p>
+                        <p className="text-xs text-muted-foreground font-body">{t.collegeName} · {t.year} · {t.phoneNumber}</p>
                       </div>
                       <div className="flex gap-2">
                         {!t.eliminated && (
-                          <>
-                            <Button variant="outline" size="sm" onClick={() => handleToggleRound2(t.id, false)}
-                              className="font-display text-xs text-primary border-primary/30">
-                              → Round 2
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={() => handleEliminateTeam(t.id)}
-                              className="font-display text-xs text-destructive border-destructive/30">
-                              Eliminate
-                            </Button>
-                          </>
+                          <Button variant="outline" size="sm" onClick={() => handleEliminateTeam(t.id)}
+                            className="font-display text-xs text-destructive border-destructive/30">
+                            Eliminate
+                          </Button>
                         )}
                       </div>
                     </div>
@@ -330,7 +325,7 @@ const AdminDashboard = () => {
               </h3>
               {round2Teams.length === 0 ? (
                 <div className="card-surface subtle-shadow p-6 text-center">
-                  <p className="text-muted-foreground font-body text-sm">No teams selected for Round 2 yet.</p>
+                  <p className="text-muted-foreground font-body text-sm">No teams selected for Round 2 yet. Use the Results tab to promote teams.</p>
                 </div>
               ) : (
                 <div className="grid gap-2">
@@ -343,13 +338,9 @@ const AdminDashboard = () => {
                           {t.teamName}
                           {t.eliminated && <span className="ml-2 text-xs text-destructive">[Eliminated]</span>}
                         </h4>
-                        <p className="text-xs text-muted-foreground font-body">{t.collegeName} · {t.year}</p>
+                        <p className="text-xs text-muted-foreground font-body">{t.collegeName} · {t.year} · {t.phoneNumber}</p>
                       </div>
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => handleToggleRound2(t.id, true)}
-                          className="font-display text-xs text-muted-foreground">
-                          ← Round 1
-                        </Button>
                         {!t.eliminated && (
                           <Button variant="outline" size="sm" onClick={() => handleEliminateTeam(t.id)}
                             className="font-display text-xs text-destructive border-destructive/30">
@@ -365,7 +356,13 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {tab === "results" && <TeamResults data={adminData} />}
+        {tab === "results" && (
+          <TeamResults
+            data={adminData}
+            onSelectForRound2={handleSelectForRound2}
+            onDeselectFromRound2={handleDeselectFromRound2}
+          />
+        )}
       </main>
     </div>
   );

@@ -112,6 +112,22 @@ export async function setTimerDuration(seconds: number) {
 
 // ─── Team operations ───
 
+function mapTeamRow(t: any, teamAnswers: Record<string, number> = {}): Team {
+  return {
+    id: t.id,
+    teamName: t.team_name,
+    collegeName: t.college_name,
+    year: t.year,
+    phoneNumber: t.phone_number || "",
+    eliminated: t.eliminated,
+    answers: teamAnswers,
+    score: t.score,
+    joinedAt: new Date(t.joined_at).getTime(),
+    currentRound: t.current_round ?? 1,
+    selectedForRound2: t.selected_for_round2 ?? false,
+  };
+}
+
 export async function fetchTeams(): Promise<Team[]> {
   const { data: teams } = await supabase
     .from("teams")
@@ -127,40 +143,18 @@ export async function fetchTeams(): Promise<Team[]> {
     (answers || []).filter((a) => a.team_id === t.id).forEach((a) => {
       teamAnswers[a.question_id] = a.selected_option;
     });
-    return {
-      id: t.id,
-      teamName: t.team_name,
-      collegeName: t.college_name,
-      year: t.year,
-      eliminated: t.eliminated,
-      answers: teamAnswers,
-      score: t.score,
-      joinedAt: new Date(t.joined_at).getTime(),
-      currentRound: (t as any).current_round ?? 1,
-      selectedForRound2: (t as any).selected_for_round2 ?? false,
-    };
+    return mapTeamRow(t, teamAnswers);
   });
 }
 
-export async function registerTeam(info: { teamName: string; collegeName: string; year: string }): Promise<Team> {
+export async function registerTeam(info: { teamName: string; collegeName: string; year: string; phoneNumber: string }): Promise<Team> {
   const { data, error } = await supabase
     .from("teams")
-    .insert({ team_name: info.teamName, college_name: info.collegeName, year: info.year })
+    .insert({ team_name: info.teamName, college_name: info.collegeName, year: info.year, phone_number: info.phoneNumber })
     .select()
     .single();
   if (error || !data) throw error || new Error("Failed to register team");
-  return {
-    id: data.id,
-    teamName: data.team_name,
-    collegeName: data.college_name,
-    year: data.year,
-    eliminated: data.eliminated,
-    answers: {},
-    score: data.score,
-    joinedAt: new Date(data.joined_at).getTime(),
-    currentRound: 1,
-    selectedForRound2: false,
-  };
+  return mapTeamRow(data);
 }
 
 export async function findTeamByCredentials(teamName: string, collegeName: string, year: string): Promise<Team | null> {
@@ -172,18 +166,19 @@ export async function findTeamByCredentials(teamName: string, collegeName: strin
     .eq("year", year)
     .single();
   if (!data) return null;
-  return {
-    id: data.id,
-    teamName: data.team_name,
-    collegeName: data.college_name,
-    year: data.year,
-    eliminated: data.eliminated,
-    answers: {},
-    score: data.score,
-    joinedAt: new Date(data.joined_at).getTime(),
-    currentRound: (data as any).current_round ?? 1,
-    selectedForRound2: (data as any).selected_for_round2 ?? false,
-  };
+  return mapTeamRow(data);
+}
+
+export async function findTeamForRound2(teamName: string, phoneNumber: string): Promise<Team | null> {
+  const { data } = await supabase
+    .from("teams")
+    .select("*")
+    .eq("team_name", teamName)
+    .eq("phone_number", phoneNumber)
+    .eq("selected_for_round2", true)
+    .single();
+  if (!data) return null;
+  return mapTeamRow(data);
 }
 
 export async function eliminateTeam(teamId: string) {
@@ -232,6 +227,12 @@ export async function recalculateScore(teamId: string) {
 
 export async function clearAllTeams() {
   await supabase.from("teams").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+}
+
+export async function resetTeamForRound2(teamId: string) {
+  // Reset score and answers for round 2
+  await supabase.from("answers").delete().eq("team_id", teamId);
+  await supabase.from("teams").update({ score: 0, eliminated: false } as any).eq("id", teamId);
 }
 
 // ─── Team session (localStorage) ───

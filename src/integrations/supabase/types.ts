@@ -151,6 +151,7 @@ export type Database = {
           eliminated: boolean
           id: string
           joined_at: string
+          phone_number: string
           score: number
           selected_for_round2: boolean
           team_name: string
@@ -162,6 +163,7 @@ export type Database = {
           eliminated?: boolean
           id?: string
           joined_at?: string
+          phone_number?: string
           score?: number
           selected_for_round2?: boolean
           team_name: string
@@ -173,6 +175,7 @@ export type Database = {
           eliminated?: boolean
           id?: string
           joined_at?: string
+          phone_number?: string
           score?: number
           selected_for_round2?: boolean
           team_name?: string
