@@ -50,7 +50,7 @@ const AdminDashboard = () => {
     setBundles(b);
     setTeams(t);
     setQuizState(q);
-    setTimerInput(String(q.timerDuration));
+    if (!timerInputFocused) setTimerInput(String(q.timerDuration));
   }, []);
 
   useEffect(() => {
