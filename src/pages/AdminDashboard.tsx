@@ -203,6 +203,8 @@ const AdminDashboard = () => {
                   type="number"
                   value={timerInput}
                   onChange={(e) => setTimerInput(e.target.value)}
+                  onFocus={() => setTimerInputFocused(true)}
+                  onBlur={() => setTimerInputFocused(false)}
                   className="w-24"
                   min={5}
                 />
