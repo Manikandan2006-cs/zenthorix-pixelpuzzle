@@ -173,14 +173,11 @@ const StudentQuiz = () => {
   const handleSelectAnswer = async (index: number) => {
     if (!teamId || !questions[currentIndex] || !quizActive || submitted || reviewMode) return;
     const qId = questions[currentIndex].id;
-    // If question is already locked (answered or timed out), don't allow changes
     if (lockedQuestions.has(qId)) return;
 
     setSelectedAnswer(index);
     const newAnswers = { ...answers, [qId]: index };
     setAnswers(newAnswers);
-    // Lock the question after answering
-    setLockedQuestions((prev) => new Set(prev).add(qId));
     await submitAnswer(teamId, qId, index);
     await recalculateScore(teamId);
   };
@@ -206,7 +203,14 @@ const StudentQuiz = () => {
   };
 
   const goNext = () => {
-    if (currentIndex < questions.length - 1) goToQuestion(currentIndex + 1);
+    if (currentIndex < questions.length - 1) {
+      // Lock the current question when moving forward
+      const currentQ = questions[currentIndex];
+      if (currentQ && answers[currentQ.id] !== undefined) {
+        setLockedQuestions((prev) => new Set(prev).add(currentQ.id));
+      }
+      goToQuestion(currentIndex + 1);
+    }
   };
 
   const goPrev = () => {
