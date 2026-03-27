@@ -246,13 +246,27 @@ const StudentQuiz = () => {
               Results will be announced by the admin.
             </p>
           </div>
-          <Button
-            variant="outline"
-            onClick={() => setReviewMode(true)}
-            className="font-display tracking-wide"
-          >
-            Review Your Answers
-          </Button>
+          <div className="flex gap-3 justify-center flex-wrap">
+            <Button
+              variant="outline"
+              onClick={() => setReviewMode(true)}
+              className="font-display tracking-wide"
+            >
+              Review Your Answers
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                import("@/lib/quizStore").then(({ clearTeamSession }) => {
+                  clearTeamSession();
+                  navigate("/student");
+                });
+              }}
+              className="font-display tracking-wide"
+            >
+              Back to Login
+            </Button>
+          </div>
           {reviewMode && (
             <div className="text-left space-y-3 mt-4">
               {questions.map((q, i) => (

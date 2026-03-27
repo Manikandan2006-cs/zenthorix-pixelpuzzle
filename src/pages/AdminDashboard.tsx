@@ -35,6 +35,7 @@ const AdminDashboard = () => {
   });
   const [tab, setTab] = useState<"bundles" | "quiz" | "teams" | "results">("bundles");
   const [timerInput, setTimerInput] = useState("15");
+  const [timerInputFocused, setTimerInputFocused] = useState(false);
   const [showBundleEditor, setShowBundleEditor] = useState(false);
   const [editingBundle, setEditingBundle] = useState<QuestionBundle | null>(null);
 
@@ -49,7 +50,7 @@ const AdminDashboard = () => {
     setBundles(b);
     setTeams(t);
     setQuizState(q);
-    setTimerInput(String(q.timerDuration));
+    if (!timerInputFocused) setTimerInput(String(q.timerDuration));
   }, []);
 
   useEffect(() => {
@@ -202,6 +203,8 @@ const AdminDashboard = () => {
                   type="number"
                   value={timerInput}
                   onChange={(e) => setTimerInput(e.target.value)}
+                  onFocus={() => setTimerInputFocused(true)}
+                  onBlur={() => setTimerInputFocused(false)}
                   className="w-24"
                   min={5}
                 />
