@@ -35,6 +35,7 @@ const AdminDashboard = () => {
   });
   const [tab, setTab] = useState<"bundles" | "quiz" | "teams" | "results">("bundles");
   const [timerInput, setTimerInput] = useState("15");
+  const [timerInputFocused, setTimerInputFocused] = useState(false);
   const [showBundleEditor, setShowBundleEditor] = useState(false);
   const [editingBundle, setEditingBundle] = useState<QuestionBundle | null>(null);
 
