@@ -189,6 +189,19 @@ export async function selectTeamForRound2(teamId: string) {
   await supabase.from("teams").update({ selected_for_round2: true, current_round: 2, eliminated: false } as any).eq("id", teamId);
 }
 
+export async function sendRound2SMS(phoneNumber: string, teamName: string, fromNumber: string) {
+  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+  const res = await fetch(
+    `https://${projectId}.supabase.co/functions/v1/send-round2-sms`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phoneNumber, teamName, fromNumber }),
+    }
+  );
+  return res.json();
+}
+
 export async function deselectTeamFromRound2(teamId: string) {
   await supabase.from("teams").update({ selected_for_round2: false, current_round: 1 } as any).eq("id", teamId);
 }
