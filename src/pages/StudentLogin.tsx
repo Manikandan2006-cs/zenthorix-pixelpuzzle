@@ -1,11 +1,19 @@
 import { useState } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { registerTeam, findTeamByCredentials, findTeamForRound2, saveTeamSession } from "@/lib/quizStore";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 
 const StudentLogin = () => {
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("zenthorix_theme") === "dark";
+    }
+    return false;
+  });
   const [mode, setMode] = useState<"round1" | "round2">("round1");
   const [teamName, setTeamName] = useState("");
   const [collegeName, setCollegeName] = useState("");
@@ -14,6 +22,15 @@ const StudentLogin = () => {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+    localStorage.setItem("zenthorix_theme", darkMode ? "dark" : "light");
+  }, [darkMode]);
 
   const handleJoinRound1 = async () => {
     if (!teamName.trim() || !collegeName.trim() || !year.trim() || !phoneNumber.trim()) return;
@@ -65,6 +82,12 @@ const StudentLogin = () => {
   return (
     <div className="min-h-screen soft-bg flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-8">
+        {/* Theme Toggle */}
+        <div className="flex justify-end items-center gap-2">
+          <span className="text-xs font-body text-muted-foreground">{darkMode ? "Dark" : "Light"}</span>
+          <Switch checked={darkMode} onCheckedChange={setDarkMode} />
+        </div>
+
         <div className="text-center space-y-2">
           <h1 className="text-3xl md:text-4xl font-display font-bold tracking-tight text-foreground">
             Zenthorix
