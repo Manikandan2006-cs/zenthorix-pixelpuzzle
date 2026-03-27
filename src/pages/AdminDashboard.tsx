@@ -16,6 +16,7 @@ import {
   selectTeamForRound2,
   deselectTeamFromRound2,
 } from "@/lib/quizStore";
+import { sendRound2SMS } from "@/lib/quizStore";
 import { QuestionBundle, Team, QuizState } from "@/types/quiz";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,8 @@ const AdminDashboard = () => {
   const [showBundleEditor, setShowBundleEditor] = useState(false);
   const [editingBundle, setEditingBundle] = useState<QuestionBundle | null>(null);
   const timerInputFocusedRef = useRef(false);
+
+  const [twilioFrom, setTwilioFrom] = useState(() => localStorage.getItem("zenthorix_twilio_from") || "");
 
   useEffect(() => {
     if (sessionStorage.getItem("zenthorix_admin") !== "true") {
@@ -92,6 +95,15 @@ const AdminDashboard = () => {
 
   const handleSelectForRound2 = async (teamId: string) => {
     await selectTeamForRound2(teamId);
+    // Send SMS notification
+    const team = teams.find((t) => t.id === teamId);
+    if (team && team.phoneNumber && twilioFrom) {
+      try {
+        await sendRound2SMS(team.phoneNumber, team.teamName, twilioFrom);
+      } catch (e) {
+        console.error("SMS failed:", e);
+      }
+    }
     refresh();
   };
 
@@ -198,6 +210,19 @@ const AdminDashboard = () => {
 
             <div className="card-surface subtle-shadow p-5 space-y-3">
               <h3 className="font-display font-medium text-foreground">Timer Per Question</h3>
+              <div className="flex gap-2 items-center mb-3">
+                <Input
+                  type="text"
+                  value={twilioFrom}
+                  onChange={(e) => {
+                    setTwilioFrom(e.target.value);
+                    localStorage.setItem("zenthorix_twilio_from", e.target.value);
+                  }}
+                  placeholder="Twilio From Number (e.g. +1234567890)"
+                  className="flex-1 text-sm"
+                />
+                <span className="text-muted-foreground font-body text-xs">SMS sender</span>
+              </div>
               <div className="flex gap-2 items-center">
                 <Input
                   type="number"
