@@ -210,19 +210,6 @@ const AdminDashboard = () => {
 
             <div className="card-surface subtle-shadow p-5 space-y-3">
               <h3 className="font-display font-medium text-foreground">Timer Per Question</h3>
-              <div className="flex gap-2 items-center mb-3">
-                <Input
-                  type="text"
-                  value={twilioFrom}
-                  onChange={(e) => {
-                    setTwilioFrom(e.target.value);
-                    localStorage.setItem("zenthorix_twilio_from", e.target.value);
-                  }}
-                  placeholder="Twilio From Number (e.g. +1234567890)"
-                  className="flex-1 text-sm"
-                />
-                <span className="text-muted-foreground font-body text-xs">SMS sender</span>
-              </div>
               <div className="flex gap-2 items-center">
                 <Input
                   type="number"
@@ -241,6 +228,23 @@ const AdminDashboard = () => {
               <p className="text-sm text-muted-foreground font-body">
                 Current: {quizState.timerDuration}s per question
               </p>
+            </div>
+
+            <div className="card-surface subtle-shadow p-5 space-y-3">
+              <h3 className="font-display font-medium text-foreground">SMS Notifications</h3>
+              <p className="text-sm text-muted-foreground font-body">Twilio sender number for Round 2 promotion messages.</p>
+              <div className="flex gap-2 items-center">
+                <Input
+                  type="text"
+                  value={twilioFrom}
+                  onChange={(e) => {
+                    setTwilioFrom(e.target.value);
+                    localStorage.setItem("zenthorix_twilio_from", e.target.value);
+                  }}
+                  placeholder="+1234567890"
+                  className="flex-1 text-sm"
+                />
+              </div>
             </div>
 
             <div className="card-surface subtle-shadow p-5 space-y-3">
