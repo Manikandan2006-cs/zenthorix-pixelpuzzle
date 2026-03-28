@@ -43,11 +43,12 @@ const StudentLogin = () => {
         navigate("/student/quiz");
         return;
       }
+      const fullPhone = phoneNumber.trim().startsWith("+") ? phoneNumber.trim() : `+91${phoneNumber.trim()}`;
       const team = await registerTeam({
         teamName: teamName.trim(),
         collegeName: collegeName.trim(),
         year: year.trim(),
-        phoneNumber: phoneNumber.trim(),
+        phoneNumber: fullPhone,
       });
       saveTeamSession(team.id);
       navigate("/student/quiz");
