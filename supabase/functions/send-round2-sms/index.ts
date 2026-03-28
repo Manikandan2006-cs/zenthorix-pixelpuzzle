@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: new URLSearchParams({
-        To: phoneNumber,
+        To: phoneNumber.startsWith("+") ? phoneNumber : `+91${phoneNumber}`,
         From: smsFrom,
         Body: `🎉 Congratulations ${teamName}! You have been selected for Round 2 of Zenthorix Quiz. Log in with your Team Name and Phone Number to continue. Good luck!`,
       }),
