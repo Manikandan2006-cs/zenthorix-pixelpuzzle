@@ -43,11 +43,12 @@ const StudentLogin = () => {
         navigate("/student/quiz");
         return;
       }
+      const fullPhone = phoneNumber.trim().startsWith("+") ? phoneNumber.trim() : `+91${phoneNumber.trim()}`;
       const team = await registerTeam({
         teamName: teamName.trim(),
         collegeName: collegeName.trim(),
         year: year.trim(),
-        phoneNumber: phoneNumber.trim(),
+        phoneNumber: fullPhone,
       });
       saveTeamSession(team.id);
       navigate("/student/quiz");
@@ -134,7 +135,10 @@ const StudentLogin = () => {
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-body font-medium text-muted-foreground">Phone Number</label>
-                <Input value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="Enter phone number" type="tel" />
+                <div className="flex">
+                  <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-sm text-muted-foreground font-body">+91</span>
+                  <Input value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ""))} placeholder="9361XXXXXX" type="tel" className="rounded-l-none" maxLength={10} />
+                </div>
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-body font-medium text-muted-foreground">College Name</label>
@@ -164,7 +168,10 @@ const StudentLogin = () => {
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-body font-medium text-muted-foreground">Phone Number</label>
-                <Input value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="Enter phone number" type="tel" />
+                <div className="flex">
+                  <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-sm text-muted-foreground font-body">+91</span>
+                  <Input value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ""))} placeholder="9361XXXXXX" type="tel" className="rounded-l-none" maxLength={10} />
+                </div>
               </div>
             </div>
           )}
