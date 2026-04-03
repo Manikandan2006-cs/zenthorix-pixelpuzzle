@@ -119,6 +119,7 @@ function mapTeamRow(t: any, teamAnswers: Record<string, number> = {}): Team {
     collegeName: t.college_name,
     year: t.year,
     phoneNumber: t.phone_number || "",
+    email: (t as any).email || "",
     eliminated: t.eliminated,
     answers: teamAnswers,
     score: t.score,
