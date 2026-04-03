@@ -119,6 +119,7 @@ function mapTeamRow(t: any, teamAnswers: Record<string, number> = {}): Team {
     collegeName: t.college_name,
     year: t.year,
     phoneNumber: t.phone_number || "",
+    email: (t as any).email || "",
     eliminated: t.eliminated,
     answers: teamAnswers,
     score: t.score,
@@ -147,10 +148,10 @@ export async function fetchTeams(): Promise<Team[]> {
   });
 }
 
-export async function registerTeam(info: { teamName: string; collegeName: string; year: string; phoneNumber: string }): Promise<Team> {
+export async function registerTeam(info: { teamName: string; collegeName: string; year: string; phoneNumber: string; email: string }): Promise<Team> {
   const { data, error } = await supabase
     .from("teams")
-    .insert({ team_name: info.teamName, college_name: info.collegeName, year: info.year, phone_number: info.phoneNumber })
+    .insert({ team_name: info.teamName, college_name: info.collegeName, year: info.year, phone_number: info.phoneNumber, email: info.email } as any)
     .select()
     .single();
   if (error || !data) throw error || new Error("Failed to register team");
@@ -189,17 +190,23 @@ export async function selectTeamForRound2(teamId: string) {
   await supabase.from("teams").update({ selected_for_round2: true, current_round: 2, eliminated: false } as any).eq("id", teamId);
 }
 
-export async function sendRound2SMS(phoneNumber: string, teamName: string, fromNumber: string) {
+export async function sendRound2Email(email: string, teamName: string) {
   const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+  const loginUrl = `${window.location.origin}/student`;
   const res = await fetch(
-    `https://${projectId}.supabase.co/functions/v1/send-round2-sms`,
+    `https://${projectId}.supabase.co/functions/v1/send-round2-email`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phoneNumber, teamName, fromNumber }),
+      body: JSON.stringify({ email, teamName, loginUrl }),
     }
   );
   return res.json();
+}
+
+export async function deleteTeam(teamId: string) {
+  await supabase.from("answers").delete().eq("team_id", teamId);
+  await supabase.from("teams").delete().eq("id", teamId);
 }
 
 export async function deselectTeamFromRound2(teamId: string) {

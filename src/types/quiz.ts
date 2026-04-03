@@ -17,6 +17,7 @@ export interface Team {
   collegeName: string;
   year: string;
   phoneNumber: string;
+  email: string;
   eliminated: boolean;
   answers: Record<string, number>;
   score: number;

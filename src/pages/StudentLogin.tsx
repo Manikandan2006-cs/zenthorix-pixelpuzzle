@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { registerTeam, findTeamByCredentials, findTeamForRound2, saveTeamSession } from "@/lib/quizStore";
 import { Input } from "@/components/ui/input";
@@ -19,6 +18,7 @@ const StudentLogin = () => {
   const [collegeName, setCollegeName] = useState("");
   const [year, setYear] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const navigate = useNavigate();
@@ -33,7 +33,7 @@ const StudentLogin = () => {
   }, [darkMode]);
 
   const handleJoinRound1 = async () => {
-    if (!teamName.trim() || !collegeName.trim() || !year.trim() || !phoneNumber.trim()) return;
+    if (!teamName.trim() || !collegeName.trim() || !year.trim() || !phoneNumber.trim() || !email.trim()) return;
     setLoading(true);
     setErrorMsg("");
     try {
@@ -49,6 +49,7 @@ const StudentLogin = () => {
         collegeName: collegeName.trim(),
         year: year.trim(),
         phoneNumber: fullPhone,
+        email: email.trim(),
       });
       saveTeamSession(team.id);
       navigate("/student/quiz");
@@ -134,6 +135,10 @@ const StudentLogin = () => {
                 <Input value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="Enter your team name" />
               </div>
               <div className="space-y-1.5">
+                <label className="text-sm font-body font-medium text-muted-foreground">Email</label>
+                <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="team@example.com" type="email" />
+              </div>
+              <div className="space-y-1.5">
                 <label className="text-sm font-body font-medium text-muted-foreground">Phone Number</label>
                 <div className="flex">
                   <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-sm text-muted-foreground font-body">+91</span>
@@ -184,7 +189,7 @@ const StudentLogin = () => {
             onClick={mode === "round1" ? handleJoinRound1 : handleJoinRound2}
             disabled={
               mode === "round1"
-                ? !teamName.trim() || !collegeName.trim() || !year.trim() || !phoneNumber.trim() || loading
+                ? !teamName.trim() || !collegeName.trim() || !year.trim() || !phoneNumber.trim() || !email.trim() || loading
                 : !teamName.trim() || !phoneNumber.trim() || loading
             }
             className="w-full font-display font-semibold text-base tracking-wide"

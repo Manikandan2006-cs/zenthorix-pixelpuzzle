@@ -149,6 +149,7 @@ export type Database = {
           college_name: string
           current_round: number
           eliminated: boolean
+          email: string
           id: string
           joined_at: string
           phone_number: string
@@ -161,6 +162,7 @@ export type Database = {
           college_name: string
           current_round?: number
           eliminated?: boolean
+          email?: string
           id?: string
           joined_at?: string
           phone_number?: string
@@ -173,6 +175,7 @@ export type Database = {
           college_name?: string
           current_round?: number
           eliminated?: boolean
+          email?: string
           id?: string
           joined_at?: string
           phone_number?: string
