@@ -15,8 +15,9 @@ import {
   clearAllTeams,
   selectTeamForRound2,
   deselectTeamFromRound2,
+  deleteTeam,
 } from "@/lib/quizStore";
-import { sendRound2SMS } from "@/lib/quizStore";
+import { sendRound2Email } from "@/lib/quizStore";
 import { QuestionBundle, Team, QuizState } from "@/types/quiz";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,8 +40,6 @@ const AdminDashboard = () => {
   const [showBundleEditor, setShowBundleEditor] = useState(false);
   const [editingBundle, setEditingBundle] = useState<QuestionBundle | null>(null);
   const timerInputFocusedRef = useRef(false);
-
-  const [twilioFrom, setTwilioFrom] = useState(() => localStorage.getItem("zenthorix_twilio_from") || "");
 
   useEffect(() => {
     if (sessionStorage.getItem("zenthorix_admin") !== "true") {
@@ -92,16 +91,16 @@ const AdminDashboard = () => {
   const handleDeleteBundle = async (id: string) => { await deleteBundle(id); refresh(); };
   const handleEliminateTeam = async (id: string) => { await eliminateTeam(id); refresh(); };
   const handleClearTeams = async () => { await clearAllTeams(); refresh(); };
+  const handleDeleteTeam = async (id: string) => { await deleteTeam(id); refresh(); };
 
   const handleSelectForRound2 = async (teamId: string) => {
     await selectTeamForRound2(teamId);
-    // Send SMS notification
     const team = teams.find((t) => t.id === teamId);
-    if (team && team.phoneNumber && twilioFrom) {
+    if (team && team.email) {
       try {
-        await sendRound2SMS(team.phoneNumber, team.teamName, twilioFrom);
+        await sendRound2Email(team.email, team.teamName);
       } catch (e) {
-        console.error("SMS failed:", e);
+        console.error("Email failed:", e);
       }
     }
     refresh();
@@ -120,6 +119,7 @@ const AdminDashboard = () => {
   ];
 
   const activeBundle = bundles.find((b) => b.id === quizState.activeBundle);
+  const [teamsRoundTab, setTeamsRoundTab] = useState<"round1" | "round2">("round1");
   const round1Teams = teams.filter((t) => !t.selectedForRound2);
   const round2Teams = teams.filter((t) => t.selectedForRound2);
 
@@ -231,23 +231,6 @@ const AdminDashboard = () => {
             </div>
 
             <div className="card-surface subtle-shadow p-5 space-y-3">
-              <h3 className="font-display font-medium text-foreground">SMS Notifications</h3>
-              <p className="text-sm text-muted-foreground font-body">Twilio sender number for Round 2 promotion messages.</p>
-              <div className="flex gap-2 items-center">
-                <Input
-                  type="text"
-                  value={twilioFrom}
-                  onChange={(e) => {
-                    setTwilioFrom(e.target.value);
-                    localStorage.setItem("zenthorix_twilio_from", e.target.value);
-                  }}
-                  placeholder="+1234567890"
-                  className="flex-1 text-sm"
-                />
-              </div>
-            </div>
-
-            <div className="card-surface subtle-shadow p-5 space-y-3">
               <h3 className="font-display font-medium text-foreground">Select Bundle</h3>
               {bundles.length === 0 ? (
                 <p className="text-muted-foreground font-body text-sm">No bundles available.</p>
@@ -301,7 +284,7 @@ const AdminDashboard = () => {
         )}
 
         {tab === "teams" && (
-          <div className="space-y-6">
+          <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-display font-semibold text-foreground">
                 Teams ({teams.length})
@@ -312,79 +295,107 @@ const AdminDashboard = () => {
               </Button>
             </div>
 
-            {/* Round 1 Teams */}
-            <div className="space-y-3">
-              <h3 className="font-display font-medium text-foreground flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-primary" />
-                Round 1 ({round1Teams.length})
-              </h3>
-              {round1Teams.length === 0 ? (
-                <div className="card-surface subtle-shadow p-6 text-center">
-                  <p className="text-muted-foreground font-body text-sm">No teams in Round 1.</p>
-                </div>
-              ) : (
-                <div className="grid gap-2">
-                  {round1Teams.map((t) => (
-                    <div key={t.id} className={`card-surface subtle-shadow p-3 flex items-center justify-between ${
-                      t.eliminated ? "opacity-50" : ""
-                    }`}>
-                      <div>
-                        <h4 className="font-display font-medium text-foreground text-sm">
-                          {t.teamName}
-                          {t.eliminated && <span className="ml-2 text-xs text-destructive">[Eliminated]</span>}
-                        </h4>
-                        <p className="text-xs text-muted-foreground font-body">{t.collegeName} · {t.year} · {t.phoneNumber}</p>
-                      </div>
-                      <div className="flex gap-2">
-                        {!t.eliminated && (
-                          <Button variant="outline" size="sm" onClick={() => handleEliminateTeam(t.id)}
-                            className="font-display text-xs text-destructive border-destructive/30">
-                            Eliminate
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+            {/* Round toggle */}
+            <div className="flex gap-1 bg-muted rounded-lg p-1">
+              <button
+                onClick={() => setTeamsRoundTab("round1")}
+                className={`flex-1 py-2.5 rounded-md text-sm font-display font-medium transition-all ${
+                  teamsRoundTab === "round1"
+                    ? "bg-card text-foreground subtle-shadow"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                🏁 Round 1 ({round1Teams.length})
+              </button>
+              <button
+                onClick={() => setTeamsRoundTab("round2")}
+                className={`flex-1 py-2.5 rounded-md text-sm font-display font-medium transition-all ${
+                  teamsRoundTab === "round2"
+                    ? "bg-card text-foreground subtle-shadow"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                🚀 Round 2 ({round2Teams.length})
+              </button>
             </div>
 
-            {/* Round 2 Teams */}
-            <div className="space-y-3">
-              <h3 className="font-display font-medium text-foreground flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-secondary" />
-                Round 2 ({round2Teams.length})
-              </h3>
-              {round2Teams.length === 0 ? (
-                <div className="card-surface subtle-shadow p-6 text-center">
-                  <p className="text-muted-foreground font-body text-sm">No teams selected for Round 2 yet. Use the Results tab to promote teams.</p>
-                </div>
-              ) : (
-                <div className="grid gap-2">
-                  {round2Teams.map((t) => (
-                    <div key={t.id} className={`card-surface subtle-shadow p-3 flex items-center justify-between ring-1 ring-secondary/20 ${
-                      t.eliminated ? "opacity-50" : ""
-                    }`}>
-                      <div>
-                        <h4 className="font-display font-medium text-foreground text-sm">
-                          {t.teamName}
-                          {t.eliminated && <span className="ml-2 text-xs text-destructive">[Eliminated]</span>}
-                        </h4>
-                        <p className="text-xs text-muted-foreground font-body">{t.collegeName} · {t.year} · {t.phoneNumber}</p>
-                      </div>
-                      <div className="flex gap-2">
-                        {!t.eliminated && (
-                          <Button variant="outline" size="sm" onClick={() => handleEliminateTeam(t.id)}
+            {teamsRoundTab === "round1" && (
+              <div className="space-y-2">
+                {round1Teams.length === 0 ? (
+                  <div className="card-surface subtle-shadow p-6 text-center">
+                    <p className="text-muted-foreground font-body text-sm">No teams in Round 1.</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-2">
+                    {round1Teams.map((t) => (
+                      <div key={t.id} className={`card-surface subtle-shadow p-3 flex items-center justify-between ${
+                        t.eliminated ? "opacity-50" : ""
+                      }`}>
+                        <div className="min-w-0 flex-1">
+                          <h4 className="font-display font-medium text-foreground text-sm">
+                            {t.teamName}
+                            {t.eliminated && <span className="ml-2 text-xs text-destructive">[Eliminated]</span>}
+                          </h4>
+                          <p className="text-xs text-muted-foreground font-body truncate">{t.collegeName} · {t.year} · {t.phoneNumber}</p>
+                          {t.email && <p className="text-xs text-muted-foreground font-body truncate">📧 {t.email}</p>}
+                        </div>
+                        <div className="flex gap-1.5 shrink-0">
+                          {!t.eliminated && (
+                            <Button variant="outline" size="sm" onClick={() => handleEliminateTeam(t.id)}
+                              className="font-display text-xs text-destructive border-destructive/30">
+                              Eliminate
+                            </Button>
+                          )}
+                          <Button variant="outline" size="sm" onClick={() => handleDeleteTeam(t.id)}
                             className="font-display text-xs text-destructive border-destructive/30">
-                            Eliminate
+                            ✕
                           </Button>
-                        )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {teamsRoundTab === "round2" && (
+              <div className="space-y-2">
+                {round2Teams.length === 0 ? (
+                  <div className="card-surface subtle-shadow p-6 text-center">
+                    <p className="text-muted-foreground font-body text-sm">No teams selected for Round 2 yet.</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-2">
+                    {round2Teams.map((t) => (
+                      <div key={t.id} className={`card-surface subtle-shadow p-3 flex items-center justify-between ring-1 ring-secondary/20 ${
+                        t.eliminated ? "opacity-50" : ""
+                      }`}>
+                        <div className="min-w-0 flex-1">
+                          <h4 className="font-display font-medium text-foreground text-sm">
+                            {t.teamName}
+                            {t.eliminated && <span className="ml-2 text-xs text-destructive">[Eliminated]</span>}
+                          </h4>
+                          <p className="text-xs text-muted-foreground font-body truncate">{t.collegeName} · {t.year} · {t.phoneNumber}</p>
+                          {t.email && <p className="text-xs text-muted-foreground font-body truncate">📧 {t.email}</p>}
+                        </div>
+                        <div className="flex gap-1.5 shrink-0">
+                          {!t.eliminated && (
+                            <Button variant="outline" size="sm" onClick={() => handleEliminateTeam(t.id)}
+                              className="font-display text-xs text-destructive border-destructive/30">
+                              Eliminate
+                            </Button>
+                          )}
+                          <Button variant="outline" size="sm" onClick={() => handleDeleteTeam(t.id)}
+                            className="font-display text-xs text-destructive border-destructive/30">
+                            ✕
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -393,6 +404,7 @@ const AdminDashboard = () => {
             data={adminData}
             onSelectForRound2={handleSelectForRound2}
             onDeselectFromRound2={handleDeselectFromRound2}
+            onDeleteTeam={handleDeleteTeam}
           />
         )}
       </main>
