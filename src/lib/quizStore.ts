@@ -148,10 +148,10 @@ export async function fetchTeams(): Promise<Team[]> {
   });
 }
 
-export async function registerTeam(info: { teamName: string; collegeName: string; year: string; phoneNumber: string }): Promise<Team> {
+export async function registerTeam(info: { teamName: string; collegeName: string; year: string; phoneNumber: string; email: string }): Promise<Team> {
   const { data, error } = await supabase
     .from("teams")
-    .insert({ team_name: info.teamName, college_name: info.collegeName, year: info.year, phone_number: info.phoneNumber })
+    .insert({ team_name: info.teamName, college_name: info.collegeName, year: info.year, phone_number: info.phoneNumber, email: info.email } as any)
     .select()
     .single();
   if (error || !data) throw error || new Error("Failed to register team");
