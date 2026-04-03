@@ -1,0 +1,1 @@
+ALTER TABLE public.teams ADD COLUMN email text NOT NULL DEFAULT '';
