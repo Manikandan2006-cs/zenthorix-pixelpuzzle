@@ -123,11 +123,11 @@
   }
 
   .soft-bg {
-    background: linear-gradient(135deg, hsl(220 20% 97%) 0%, hsl(240 15% 95%) 100%);
+    background: linear-gradient(145deg, hsl(220 20% 97%) 0%, hsl(230 18% 94%) 50%, hsl(250 15% 95%) 100%);
   }
 
   .dark .soft-bg {
-    background: linear-gradient(135deg, hsl(220 20% 10%) 0%, hsl(240 15% 12%) 100%);
+    background: linear-gradient(145deg, hsl(220 25% 8%) 0%, hsl(230 20% 11%) 50%, hsl(250 18% 10%) 100%);
   }
 
   .dark .eliminated-overlay {
