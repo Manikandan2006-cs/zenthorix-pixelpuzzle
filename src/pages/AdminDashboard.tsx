@@ -1,39 +1,36 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  fetchBundles,
-  fetchTeams,
-  fetchQuizState,
-  addBundle,
-  updateBundle,
-  deleteBundle,
-  setActiveBundle,
-  startQuiz,
-  stopQuiz,
-  setTimerDuration,
-  eliminateTeam,
-  clearAllTeams,
-  selectTeamForRound2,
-  deselectTeamFromRound2,
-  deleteTeam,
+  fetchBundles, fetchTeams, fetchQuizState,
+  addBundle, updateBundle, deleteBundle,
+  setActiveBundle, startQuiz, stopQuiz, setTimerDuration,
+  eliminateTeam, clearAllTeams, selectTeamForRound2,
+  deselectTeamFromRound2, deleteTeam, sendRound2Email,
 } from "@/lib/quizStore";
-import { sendRound2Email } from "@/lib/quizStore";
 import { QuestionBundle, Team, QuizState } from "@/types/quiz";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import BundleEditor from "@/components/BundleEditor";
 import TeamResults from "@/components/TeamResults";
 
+const StatCard = ({ icon, label, value, color = "primary" }: { icon: string; label: string; value: string | number; color?: string }) => (
+  <div className="card-surface subtle-shadow p-4 flex items-center gap-3">
+    <div className={`w-10 h-10 rounded-lg bg-${color}/10 flex items-center justify-center text-lg shrink-0`}>
+      {icon}
+    </div>
+    <div>
+      <p className="text-2xl font-display font-bold text-foreground">{value}</p>
+      <p className="text-xs text-muted-foreground font-body">{label}</p>
+    </div>
+  </div>
+);
+
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [bundles, setBundles] = useState<QuestionBundle[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [quizState, setQuizState] = useState<QuizState>({
-    activeBundle: null,
-    isQuizActive: false,
-    timerDuration: 15,
-    timerStartedAt: null,
-    timerPaused: false,
+    activeBundle: null, isQuizActive: false, timerDuration: 15, timerStartedAt: null, timerPaused: false,
   });
   const [tab, setTab] = useState<"bundles" | "quiz" | "teams" | "results">("bundles");
   const [timerInput, setTimerInput] = useState("15");
@@ -42,16 +39,12 @@ const AdminDashboard = () => {
   const timerInputFocusedRef = useRef(false);
 
   useEffect(() => {
-    if (sessionStorage.getItem("zenthorix_admin") !== "true") {
-      navigate("/admin");
-    }
+    if (sessionStorage.getItem("zenthorix_admin") !== "true") navigate("/admin");
   }, [navigate]);
 
   const refresh = useCallback(async () => {
     const [b, t, q] = await Promise.all([fetchBundles(), fetchTeams(), fetchQuizState()]);
-    setBundles(b);
-    setTeams(t);
-    setQuizState(q);
+    setBundles(b); setTeams(t); setQuizState(q);
     if (!timerInputFocusedRef.current) setTimerInput(String(q.timerDuration));
   }, []);
 
@@ -63,29 +56,16 @@ const AdminDashboard = () => {
 
   const handleSetTimer = async () => {
     const secs = parseInt(timerInput);
-    if (!isNaN(secs) && secs > 0) {
-      await setTimerDuration(secs);
-      refresh();
-    }
+    if (!isNaN(secs) && secs > 0) { await setTimerDuration(secs); refresh(); }
   };
 
-  const handleSelectBundle = async (bundleId: string) => {
-    await setActiveBundle(bundleId);
-    refresh();
-  };
-
+  const handleSelectBundle = async (bundleId: string) => { await setActiveBundle(bundleId); refresh(); };
   const handleStartQuiz = async () => { await startQuiz(); refresh(); };
   const handleStopQuiz = async () => { await stopQuiz(); refresh(); };
 
   const handleSaveBundle = async (bundle: QuestionBundle) => {
-    if (editingBundle) {
-      await updateBundle(bundle);
-    } else {
-      await addBundle(bundle);
-    }
-    setShowBundleEditor(false);
-    setEditingBundle(null);
-    refresh();
+    if (editingBundle) { await updateBundle(bundle); } else { await addBundle(bundle); }
+    setShowBundleEditor(false); setEditingBundle(null); refresh();
   };
 
   const handleDeleteBundle = async (id: string) => { await deleteBundle(id); refresh(); };
@@ -97,49 +77,63 @@ const AdminDashboard = () => {
     await selectTeamForRound2(teamId);
     const team = teams.find((t) => t.id === teamId);
     if (team && team.email) {
-      try {
-        await sendRound2Email(team.email, team.teamName);
-      } catch (e) {
-        console.error("Email failed:", e);
-      }
+      try { await sendRound2Email(team.email, team.teamName); } catch (e) { console.error("Email failed:", e); }
     }
     refresh();
   };
 
   const handleDeselectFromRound2 = async (teamId: string) => {
-    await deselectTeamFromRound2(teamId);
-    refresh();
+    await deselectTeamFromRound2(teamId); refresh();
   };
 
   const tabs = [
-    { id: "bundles" as const, label: "Bundles" },
-    { id: "quiz" as const, label: "Quiz Control" },
-    { id: "teams" as const, label: "Teams" },
-    { id: "results" as const, label: "Results" },
+    { id: "bundles" as const, label: "📦 Bundles", icon: "📦" },
+    { id: "quiz" as const, label: "🎮 Quiz Control", icon: "🎮" },
+    { id: "teams" as const, label: "👥 Teams", icon: "👥" },
+    { id: "results" as const, label: "📊 Results", icon: "📊" },
   ];
 
   const activeBundle = bundles.find((b) => b.id === quizState.activeBundle);
   const [teamsRoundTab, setTeamsRoundTab] = useState<"round1" | "round2">("round1");
   const round1Teams = teams.filter((t) => !t.selectedForRound2);
   const round2Teams = teams.filter((t) => t.selectedForRound2);
+  const activeTeams = teams.filter((t) => !t.eliminated);
+  const eliminatedTeams = teams.filter((t) => t.eliminated);
 
   const adminData = { bundles, teams, quizState, adminPassword: "" };
 
   return (
     <div className="min-h-screen soft-bg">
+      {/* Header */}
       <header className="bg-card border-b border-border px-4 py-3 flex items-center justify-between subtle-shadow">
         <div className="flex items-center gap-3">
+          <span className="text-xl">⚡</span>
           <h1 className="font-display text-lg font-bold text-foreground">Zenthorix</h1>
-          <span className="text-muted-foreground font-body text-sm">Admin</span>
+          <span className="text-muted-foreground font-body text-sm bg-muted px-2 py-0.5 rounded-md">Admin</span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${quizState.isQuizActive ? "bg-primary" : "bg-muted-foreground"}`} />
-          <span className="text-sm font-body text-muted-foreground">
+        <div className="flex items-center gap-3">
+          <span className={`flex items-center gap-1.5 text-sm font-body px-2.5 py-1 rounded-full ${
+            quizState.isQuizActive
+              ? "bg-primary/10 text-primary"
+              : "bg-muted text-muted-foreground"
+          }`}>
+            <span className={`w-2 h-2 rounded-full ${quizState.isQuizActive ? "bg-primary animate-pulse" : "bg-muted-foreground"}`} />
             {quizState.isQuizActive ? "Live" : "Idle"}
           </span>
         </div>
       </header>
 
+      {/* Stats Bar */}
+      <div className="bg-card/50 border-b border-border px-4 py-3">
+        <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-3">
+          <StatCard icon="👥" label="Total Teams" value={teams.length} />
+          <StatCard icon="✅" label="Active" value={activeTeams.length} color="primary" />
+          <StatCard icon="❌" label="Eliminated" value={eliminatedTeams.length} color="destructive" />
+          <StatCard icon="🚀" label="Round 2" value={round2Teams.length} color="secondary" />
+        </div>
+      </div>
+
+      {/* Tabs */}
       <nav className="bg-card border-b border-border px-4 flex gap-1 overflow-x-auto">
         {tabs.map((t) => (
           <button
@@ -157,6 +151,7 @@ const AdminDashboard = () => {
       </nav>
 
       <main className="p-4 max-w-5xl mx-auto">
+        {/* ─── BUNDLES TAB ─── */}
         {tab === "bundles" && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -168,7 +163,6 @@ const AdminDashboard = () => {
                 + New Bundle
               </Button>
             </div>
-
             {showBundleEditor && (
               <BundleEditor
                 bundle={editingBundle}
@@ -176,21 +170,28 @@ const AdminDashboard = () => {
                 onCancel={() => { setShowBundleEditor(false); setEditingBundle(null); }}
               />
             )}
-
             {bundles.length === 0 && !showBundleEditor && (
               <div className="card-surface subtle-shadow p-8 text-center">
+                <span className="text-4xl mb-3 block">📦</span>
                 <p className="text-muted-foreground font-body">No bundles yet. Create one to get started.</p>
               </div>
             )}
-
             <div className="grid gap-3">
               {bundles.map((b) => (
                 <div key={b.id} className={`card-surface subtle-shadow p-4 flex items-center justify-between ${
                   quizState.activeBundle === b.id ? "ring-2 ring-primary/30" : ""
                 }`}>
-                  <div>
-                    <h3 className="font-display font-semibold text-foreground">{b.name}</h3>
-                    <p className="text-sm text-muted-foreground font-body">{b.questions.length} questions</p>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">📋</span>
+                    <div>
+                      <h3 className="font-display font-semibold text-foreground">{b.name}</h3>
+                      <p className="text-sm text-muted-foreground font-body">
+                        {b.questions.length} questions
+                        {quizState.activeBundle === b.id && (
+                          <span className="ml-2 text-primary font-medium">• Active</span>
+                        )}
+                      </p>
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={() => { setEditingBundle(b); setShowBundleEditor(true); }}
@@ -204,36 +205,33 @@ const AdminDashboard = () => {
           </div>
         )}
 
+        {/* ─── QUIZ CONTROL TAB ─── */}
         {tab === "quiz" && (
           <div className="space-y-5">
-            <h2 className="text-xl font-display font-semibold text-foreground">Quiz Control</h2>
+            <h2 className="text-xl font-display font-semibold text-foreground">🎮 Quiz Control</h2>
 
+            {/* Timer */}
             <div className="card-surface subtle-shadow p-5 space-y-3">
-              <h3 className="font-display font-medium text-foreground">Timer Per Question</h3>
+              <h3 className="font-display font-medium text-foreground flex items-center gap-2">⏱ Timer Per Question</h3>
               <div className="flex gap-2 items-center">
                 <Input
-                  type="number"
-                  value={timerInput}
+                  type="number" value={timerInput}
                   onChange={(e) => setTimerInput(e.target.value)}
                   onFocus={() => { timerInputFocusedRef.current = true; }}
                   onBlur={() => { timerInputFocusedRef.current = false; }}
-                  className="w-24"
-                  min={5}
+                  className="w-24" min={5}
                 />
-                <span className="text-muted-foreground font-body text-sm">seconds per question</span>
-                <Button onClick={handleSetTimer} variant="outline" size="sm" className="font-display text-xs">
-                  Set
-                </Button>
+                <span className="text-muted-foreground font-body text-sm">seconds</span>
+                <Button onClick={handleSetTimer} variant="outline" size="sm" className="font-display text-xs">Set</Button>
               </div>
-              <p className="text-sm text-muted-foreground font-body">
-                Current: {quizState.timerDuration}s per question
-              </p>
+              <p className="text-sm text-muted-foreground font-body">Current: <span className="font-semibold text-foreground">{quizState.timerDuration}s</span></p>
             </div>
 
+            {/* Bundle Selection */}
             <div className="card-surface subtle-shadow p-5 space-y-3">
-              <h3 className="font-display font-medium text-foreground">Select Bundle</h3>
+              <h3 className="font-display font-medium text-foreground flex items-center gap-2">📦 Select Bundle</h3>
               {bundles.length === 0 ? (
-                <p className="text-muted-foreground font-body text-sm">No bundles available.</p>
+                <p className="text-muted-foreground font-body text-sm">No bundles available. Create one in the Bundles tab.</p>
               ) : (
                 <div className="grid gap-2">
                   {bundles.map((b) => (
@@ -242,7 +240,7 @@ const AdminDashboard = () => {
                       onClick={() => handleSelectBundle(b.id)}
                       className={`p-3 rounded-lg border text-left font-body transition-all ${
                         quizState.activeBundle === b.id
-                          ? "border-primary bg-primary/5"
+                          ? "border-primary bg-primary/5 ring-1 ring-primary/20"
                           : "border-border bg-card hover:bg-muted/50"
                       }`}
                     >
@@ -254,28 +252,36 @@ const AdminDashboard = () => {
               )}
             </div>
 
+            {/* Status & Controls */}
             <div className="card-surface subtle-shadow p-5 space-y-3">
-              <h3 className="font-display font-medium text-foreground">Status</h3>
+              <h3 className="font-display font-medium text-foreground flex items-center gap-2">📡 Status</h3>
               {quizState.isQuizActive ? (
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 bg-primary/5 border border-primary/15 rounded-lg p-3">
                     <span className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse" />
                     <span className="text-primary font-display font-semibold">Quiz is Live</span>
                   </div>
-                  <p className="text-muted-foreground font-body text-sm">
-                    Bundle: {activeBundle?.name || "—"} · Teams: {teams.filter(t => !t.eliminated).length} active
-                  </p>
-                  <Button onClick={handleStopQuiz} variant="destructive" className="font-display tracking-wide">
-                    Stop Quiz
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-muted/50 rounded-lg p-3 text-center">
+                      <p className="text-lg font-display font-bold text-foreground">{activeBundle?.name || "—"}</p>
+                      <p className="text-xs text-muted-foreground font-body">Bundle</p>
+                    </div>
+                    <div className="bg-muted/50 rounded-lg p-3 text-center">
+                      <p className="text-lg font-display font-bold text-foreground">{activeTeams.length}</p>
+                      <p className="text-xs text-muted-foreground font-body">Active Teams</p>
+                    </div>
+                  </div>
+                  <Button onClick={handleStopQuiz} variant="destructive" className="font-display tracking-wide w-full">
+                    ⏹ Stop Quiz
                   </Button>
                 </div>
               ) : (
                 <div className="space-y-3">
                   <p className="text-muted-foreground font-body text-sm">
-                    {quizState.activeBundle ? `Ready: "${activeBundle?.name}"` : "Select a bundle first"}
+                    {quizState.activeBundle ? `✅ Ready: "${activeBundle?.name}"` : "⚠️ Select a bundle first"}
                   </p>
-                  <Button onClick={handleStartQuiz} disabled={!quizState.activeBundle} className="font-display tracking-wide">
-                    Start Quiz
+                  <Button onClick={handleStartQuiz} disabled={!quizState.activeBundle} className="font-display tracking-wide w-full">
+                    ▶ Start Quiz
                   </Button>
                 </div>
               )}
@@ -283,23 +289,24 @@ const AdminDashboard = () => {
           </div>
         )}
 
+        {/* ─── TEAMS TAB ─── */}
         {tab === "teams" && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-display font-semibold text-foreground">
-                Teams ({teams.length})
+                👥 Teams ({teams.length})
               </h2>
               <Button onClick={handleClearTeams} variant="outline" size="sm"
                 className="font-display text-xs text-destructive border-destructive/30">
-                Clear All
+                🗑 Clear All
               </Button>
             </div>
 
             {/* Round toggle */}
-            <div className="flex gap-1 bg-muted rounded-lg p-1">
+            <div className="flex gap-1 bg-muted rounded-xl p-1.5">
               <button
                 onClick={() => setTeamsRoundTab("round1")}
-                className={`flex-1 py-2.5 rounded-md text-sm font-display font-medium transition-all ${
+                className={`flex-1 py-2.5 rounded-lg text-sm font-display font-medium transition-all ${
                   teamsRoundTab === "round1"
                     ? "bg-card text-foreground subtle-shadow"
                     : "text-muted-foreground hover:text-foreground"
@@ -309,7 +316,7 @@ const AdminDashboard = () => {
               </button>
               <button
                 onClick={() => setTeamsRoundTab("round2")}
-                className={`flex-1 py-2.5 rounded-md text-sm font-display font-medium transition-all ${
+                className={`flex-1 py-2.5 rounded-lg text-sm font-display font-medium transition-all ${
                   teamsRoundTab === "round2"
                     ? "bg-card text-foreground subtle-shadow"
                     : "text-muted-foreground hover:text-foreground"
@@ -323,6 +330,7 @@ const AdminDashboard = () => {
               <div className="space-y-2">
                 {round1Teams.length === 0 ? (
                   <div className="card-surface subtle-shadow p-6 text-center">
+                    <span className="text-3xl mb-2 block">🏁</span>
                     <p className="text-muted-foreground font-body text-sm">No teams in Round 1.</p>
                   </div>
                 ) : (
@@ -332,11 +340,13 @@ const AdminDashboard = () => {
                         t.eliminated ? "opacity-50" : ""
                       }`}>
                         <div className="min-w-0 flex-1">
-                          <h4 className="font-display font-medium text-foreground text-sm">
+                          <h4 className="font-display font-medium text-foreground text-sm flex items-center gap-1.5">
                             {t.teamName}
-                            {t.eliminated && <span className="ml-2 text-xs text-destructive">[Eliminated]</span>}
+                            {t.eliminated && <span className="text-xs text-destructive bg-destructive/10 px-1.5 py-0.5 rounded">[Eliminated]</span>}
                           </h4>
-                          <p className="text-xs text-muted-foreground font-body truncate">{t.collegeName} · {t.year} · {t.phoneNumber}</p>
+                          <p className="text-xs text-muted-foreground font-body truncate">
+                            🏫 {t.collegeName} · 📅 {t.year} · 📱 {t.phoneNumber}
+                          </p>
                           {t.email && <p className="text-xs text-muted-foreground font-body truncate">📧 {t.email}</p>}
                         </div>
                         <div className="flex gap-1.5 shrink-0">
@@ -362,6 +372,7 @@ const AdminDashboard = () => {
               <div className="space-y-2">
                 {round2Teams.length === 0 ? (
                   <div className="card-surface subtle-shadow p-6 text-center">
+                    <span className="text-3xl mb-2 block">🚀</span>
                     <p className="text-muted-foreground font-body text-sm">No teams selected for Round 2 yet.</p>
                   </div>
                 ) : (
@@ -371,11 +382,13 @@ const AdminDashboard = () => {
                         t.eliminated ? "opacity-50" : ""
                       }`}>
                         <div className="min-w-0 flex-1">
-                          <h4 className="font-display font-medium text-foreground text-sm">
+                          <h4 className="font-display font-medium text-foreground text-sm flex items-center gap-1.5">
                             {t.teamName}
-                            {t.eliminated && <span className="ml-2 text-xs text-destructive">[Eliminated]</span>}
+                            {t.eliminated && <span className="text-xs text-destructive bg-destructive/10 px-1.5 py-0.5 rounded">[Eliminated]</span>}
                           </h4>
-                          <p className="text-xs text-muted-foreground font-body truncate">{t.collegeName} · {t.year} · {t.phoneNumber}</p>
+                          <p className="text-xs text-muted-foreground font-body truncate">
+                            🏫 {t.collegeName} · 📅 {t.year} · 📱 {t.phoneNumber}
+                          </p>
                           {t.email && <p className="text-xs text-muted-foreground font-body truncate">📧 {t.email}</p>}
                         </div>
                         <div className="flex gap-1.5 shrink-0">
@@ -399,6 +412,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
+        {/* ─── RESULTS TAB ─── */}
         {tab === "results" && (
           <TeamResults
             data={adminData}
