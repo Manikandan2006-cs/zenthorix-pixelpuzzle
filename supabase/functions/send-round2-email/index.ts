@@ -1,4 +1,4 @@
-import { SMTPClient } from "https://deno.land/x/denomailer/mod.ts";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,12 +12,10 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const SMTP_HOST = Deno.env.get("SMTP_HOST");
-    const SMTP_PORT = Number(Deno.env.get("SMTP_PORT") || "587");
     const SMTP_USER = Deno.env.get("SMTP_USER");
     const SMTP_PASS = Deno.env.get("SMTP_PASS");
 
-    if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
+    if (!SMTP_USER || !SMTP_PASS) {
       throw new Error("SMTP credentials are not configured");
     }
 
@@ -58,9 +56,9 @@ Deno.serve(async (req) => {
 
     const client = new SMTPClient({
       connection: {
-        hostname: SMTP_HOST,
-        port: SMTP_PORT,
-        tls: false,
+        hostname: "smtp.gmail.com",
+        port: 465,
+        tls: true,
         auth: {
           username: SMTP_USER,
           password: SMTP_PASS,
