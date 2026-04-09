@@ -1,10 +1,10 @@
+import { SMTPClient } from "https://deno.land/x/denomailer/mod.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
-
-const GATEWAY_URL = "https://connector-gateway.lovable.dev/resend";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -12,11 +12,14 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const SMTP_HOST = Deno.env.get("SMTP_HOST");
+    const SMTP_PORT = Number(Deno.env.get("SMTP_PORT") || "587");
+    const SMTP_USER = Deno.env.get("SMTP_USER");
+    const SMTP_PASS = Deno.env.get("SMTP_PASS");
 
-    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-    if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY is not configured");
+    if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
+      throw new Error("SMTP credentials are not configured");
+    }
 
     const { email, teamName, loginUrl } = await req.json();
 
@@ -27,7 +30,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const round2Link = loginUrl || "https://zenthorix-pixelpuzzle.lovable.app/student";
+    const round2Link = loginUrl || "https://zenthorix-quiztronix-cse.lovable.app/student";
 
     const htmlBody = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -53,28 +56,30 @@ Deno.serve(async (req) => {
       </div>
     `;
 
-    const response = await fetch(`${GATEWAY_URL}/emails`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "X-Connection-Api-Key": RESEND_API_KEY,
+    const client = new SMTPClient({
+      connection: {
+        hostname: SMTP_HOST,
+        port: SMTP_PORT,
+        tls: true,
+        auth: {
+          username: SMTP_USER,
+          password: SMTP_PASS,
+        },
       },
-      body: JSON.stringify({
-        from: "Zenthorix <onboarding@resend.dev>",
-        to: [email],
-        subject: `🎉 ${teamName} — You're in Round 2!`,
-        html: htmlBody,
-      }),
     });
 
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(`Resend API error [${response.status}]: ${JSON.stringify(data)}`);
-    }
+    await client.send({
+      from: `Zenthorix <${SMTP_USER}>`,
+      to: email,
+      subject: `🎉 ${teamName} — You're in Round 2!`,
+      content: "You have been selected for Round 2!",
+      html: htmlBody,
+    });
+
+    await client.close();
 
     return new Response(
-      JSON.stringify({ success: true, id: data.id }),
+      JSON.stringify({ success: true }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: unknown) {
